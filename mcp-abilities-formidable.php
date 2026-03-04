@@ -3,7 +3,7 @@
  * Plugin Name: MCP Abilities - Formidable
  * Plugin URI: https://github.com/bjornfix/mcp-abilities-formidable
  * Description: Formidable Forms abilities for MCP. Inspect forms, styles, settings, usage, and CSS cache/runtime behavior.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: Devenia
  * Author URI: https://devenia.com
  * License: GPL-2.0+
@@ -500,6 +500,16 @@ function mcp_register_formidable_abilities(): void {
 		return;
 	}
 
+	if ( function_exists( 'wp_register_ability_category' ) && ! wp_has_ability_category( 'content' ) ) {
+		wp_register_ability_category(
+			'content',
+			array(
+				'label'       => __( 'Content' ),
+				'description' => __( 'Abilities that inspect or modify content-related resources.' ),
+			)
+		);
+	}
+
 	wp_register_ability(
 		'formidable/get-settings',
 		array(
@@ -892,4 +902,4 @@ function mcp_register_formidable_abilities(): void {
 	);
 }
 
-add_action( 'init', 'mcp_register_formidable_abilities', 20 );
+add_action( 'wp_abilities_api_init', 'mcp_register_formidable_abilities', 20 );

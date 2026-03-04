@@ -4,7 +4,7 @@ Tags: forms, formidable, mcp, api, automation
 Requires at least: 6.9
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -50,6 +50,10 @@ This add-on plugin extends MCP/Abilities API workflows with Formidable Forms ins
 5. The abilities are now available via the MCP endpoint
 
 == Changelog ==
+
+= 1.0.1 =
+* Fixed ability registration to use the required `wp_abilities_api_init` hook
+* Added registration for the `content` ability category before registering content-related abilities
 
 = 1.0.0 =
 * Initial release
