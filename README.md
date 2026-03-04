@@ -3,7 +3,7 @@
 Formidable Forms abilities for WordPress via MCP.
 
 **Tested up to:** 6.9  
-**Stable tag:** 1.0.1  
+**Stable tag:** 1.0.2  
 **Requires PHP:** 8.0  
 **License:** GPLv2 or later
 
@@ -45,6 +45,10 @@ This add-on plugin exposes the Formidable Forms surface that is most useful for 
 - `clear-css-cache` clears the common Formidable CSS/settings transients and can rebuild generated CSS when Formidable style classes are available
 
 ## Changelog
+
+### 1.0.2
+
+- Fixed missing text domains in translated strings for plugin-check compliance
 
 ### 1.0.1
 
