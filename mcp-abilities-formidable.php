@@ -3,7 +3,7 @@
  * Plugin Name: MCP Abilities - Formidable
  * Plugin URI: https://github.com/bjornfix/mcp-abilities-formidable
  * Description: Formidable Forms abilities for MCP. Inspect forms, styles, settings, usage, and CSS cache/runtime behavior.
- * Version: 1.0.2
+ * Version: 1.0.3
  * Author: Devenia
  * Author URI: https://devenia.com
  * License: GPL-2.0+
@@ -500,16 +500,6 @@ function mcp_register_formidable_abilities(): void {
 		return;
 	}
 
-	if ( function_exists( 'wp_register_ability_category' ) && ! wp_has_ability_category( 'content' ) ) {
-		wp_register_ability_category(
-			'content',
-			array(
-				'label'       => __( 'Content', 'mcp-abilities-formidable' ),
-				'description' => __( 'Abilities that inspect or modify content-related resources.', 'mcp-abilities-formidable' ),
-			)
-		);
-	}
-
 	wp_register_ability(
 		'formidable/get-settings',
 		array(
@@ -669,7 +659,7 @@ function mcp_register_formidable_abilities(): void {
 		array(
 			'label'               => 'List Formidable Forms',
 			'description'         => 'Lists Formidable forms with keys, IDs, styles, and shortcode references.',
-			'category'            => 'content',
+			'category'            => 'site',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'properties'           => array(
@@ -774,7 +764,7 @@ function mcp_register_formidable_abilities(): void {
 		array(
 			'label'               => 'Find Formidable Form Usage',
 			'description'         => 'Find where a Formidable form is referenced in post content, Elementor data, and widget instances.',
-			'category'            => 'content',
+			'category'            => 'site',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'properties'           => array(
