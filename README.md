@@ -6,7 +6,7 @@ Formidable Forms abilities for WordPress via MCP.
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/gpl-2.0)
 
 **Tested up to:** 6.9
-**Stable tag:** 1.0.3
+**Stable tag:** 1.0.4
 **Requires PHP:** 8.0
 **License:** GPLv2 or later
 **License URI:** https://www.gnu.org/licenses/gpl-2.0.html
@@ -54,6 +54,9 @@ This add-on plugin exposes the Formidable Forms surface that is most useful for 
 - `clear-css-cache` clears the common Formidable CSS/settings transients and can rebuild generated CSS when Formidable style classes are available
 
 ## Changelog
+
+### 1.0.4
+- Docs: expanded the WordPress-standard `readme.txt` so the published ZIP now includes fuller requirements, abilities, use cases, and Devenia ecosystem links
 
 ### 1.0.3
 - Moved the remaining abilities onto the core `site` category for compatibility with the current Abilities API registry behavior

@@ -4,7 +4,7 @@ Tags: forms, formidable, mcp, api, automation
 Requires at least: 6.9
 Tested up to: 6.9
 Requires PHP: 8.0
-Stable tag: 1.0.3
+Stable tag: 1.0.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,12 +12,12 @@ Formidable Forms abilities for MCP. Inspect forms, styles, settings, usage, and 
 
 == Description ==
 
-This add-on plugin extends MCP/Abilities API workflows with Formidable Forms inspection and configuration tools.
+This add-on plugin extends [MCP Expose Abilities](https://devenia.com/plugins/mcp-expose-abilities/) with Formidable Forms inspection and configuration tools.
 
 = Requirements =
 
-* Abilities API / MCP Adapter stack
-* Formidable Forms
+* [MCP Expose Abilities](https://github.com/bjornfix/mcp-expose-abilities) (core plugin)
+* [Formidable Forms](https://wordpress.org/plugins/formidable/) plugin
 
 = Abilities Included =
 
@@ -43,13 +43,22 @@ This add-on plugin extends MCP/Abilities API workflows with Formidable Forms ins
 
 == Installation ==
 
-1. Install and activate the Abilities API / MCP stack
-2. Install and activate Formidable Forms
+1. Install the required plugins (Abilities API, MCP Adapter, MCP Expose Abilities, Formidable Forms)
+2. Download the latest release
 3. Upload `mcp-abilities-formidable` to `/wp-content/plugins/`
 4. Activate through the 'Plugins' menu
 5. The abilities are now available via the MCP endpoint
 
+= Links =
+
+* [Plugin Page](https://devenia.com/plugins/mcp-expose-abilities/)
+* [Core Plugin (MCP Expose Abilities)](https://github.com/bjornfix/mcp-expose-abilities)
+* [All Add-on Plugins](https://devenia.com/plugins/mcp-expose-abilities/#add-ons)
+
 == Changelog ==
+
+= 1.0.4 =
+* Docs: expanded the WordPress-standard `readme.txt` so the published ZIP now includes fuller requirements, abilities, use cases, and Devenia ecosystem links
 
 = 1.0.3 =
 * Changed the remaining abilities to use the core `site` category for compatibility with the current Abilities API stack
