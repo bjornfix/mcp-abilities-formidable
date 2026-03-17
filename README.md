@@ -15,7 +15,24 @@ Formidable Forms abilities for WordPress via MCP.
 
 This add-on plugin exposes the Formidable Forms surface that is most useful for automation and site cleanup. Your AI assistant can inspect effective settings, update safe runtime and style options, find where forms are used, and clear or rebuild generated CSS.
 
-**Part of the [MCP Expose Abilities](https://devenia.com/plugins/mcp-expose-abilities/) ecosystem.**
+**Part of the [MCP Expose Abilities](https://github.com/bjornfix/mcp-expose-abilities) ecosystem.**
+
+This is one piece of a bigger open WordPress automation stack that lets AI agents do real maintenance work inside plugin ecosystems instead of leaving the boring parts to humans.
+
+## Why This Is Cool
+
+Formidable work often means settings checks, style cleanup, usage tracing, and CSS cache fixes. Important work, but not exactly thrilling.
+
+This add-on makes that promptable. You can ask the agent to inspect forms, find where they are embedded, update safe settings, and rebuild CSS without digging through several admin screens.
+
+## Documentation
+
+- [Core Plugin: MCP Expose Abilities](https://github.com/bjornfix/mcp-expose-abilities)
+- [MCP Wiki Home](https://github.com/bjornfix/mcp-expose-abilities/wiki)
+- [Why Teams Use It](https://github.com/bjornfix/mcp-expose-abilities/wiki/Why-Teams-Use-It)
+- [Use Cases](https://github.com/bjornfix/mcp-expose-abilities/wiki/Use-Cases)
+- [Formidable Add-On Guide](https://github.com/bjornfix/mcp-expose-abilities/wiki/Addon-Formidable)
+- [Getting Started](https://github.com/bjornfix/mcp-expose-abilities/wiki/Getting-Started)
 
 ## Requirements
 
@@ -85,8 +102,19 @@ GPL-2.0+
 
 [Devenia](https://devenia.com) - We've been doing SEO and web development since 1993.
 
+## Free and Open
+
+Like the rest of the ecosystem, this add-on is free for all and completely open source.
+
+## Star and Share
+
+If this add-on helps, please star the repo, share the ecosystem, and point people to the main wiki:
+
+- https://github.com/bjornfix/mcp-expose-abilities
+- https://github.com/bjornfix/mcp-expose-abilities/wiki
+
 ## Links
 
-- [Plugin Page](https://devenia.com/plugins/mcp-expose-abilities/)
 - [Core Plugin (MCP Expose Abilities)](https://github.com/bjornfix/mcp-expose-abilities)
-- [All Add-on Plugins](https://devenia.com/plugins/mcp-expose-abilities/#add-ons)
+- [Main Wiki](https://github.com/bjornfix/mcp-expose-abilities/wiki)
+- [Formidable Add-On Guide](https://github.com/bjornfix/mcp-expose-abilities/wiki/Addon-Formidable)
