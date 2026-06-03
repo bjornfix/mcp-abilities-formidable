@@ -6,7 +6,7 @@ Formidable Forms abilities for WordPress via MCP.
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/gpl-2.0)
 
 **Tested up to:** 6.9
-**Stable tag:** 1.0.4
+**Stable tag:** 1.2.5
 **Requires PHP:** 8.0
 **License:** GPLv2 or later
 **License URI:** https://www.gnu.org/licenses/gpl-2.0.html
@@ -23,7 +23,7 @@ This is one piece of a bigger open WordPress automation stack that lets AI agent
 
 Formidable work often means settings checks, style cleanup, usage tracing, and CSS cache fixes. Important work, but not exactly thrilling.
 
-This add-on makes that promptable. You can ask the agent to inspect forms, find where they are embedded, update safe settings, and rebuild CSS without digging through several admin screens.
+This add-on makes that promptable. You can ask the agent to inspect forms, inspect and modify fields, find where forms are embedded, update safe settings, and rebuild CSS without digging through several admin screens.
 
 ## Documentation
 
@@ -50,13 +50,18 @@ This add-on makes that promptable. You can ask the agent to inspect forms, find 
 3. Upload via WordPress Admin > Plugins > Add New > Upload Plugin
 4. Activate the plugin
 
-## Abilities (6)
+## Abilities (11)
 
 | Ability | Description |
 |---------|-------------|
 | `formidable/get-settings` | Get effective and raw Formidable settings |
 | `formidable/update-settings` | Update supported runtime and style settings |
 | `formidable/list-forms` | List forms with IDs, keys, styles, and shortcode refs |
+| `formidable/get-form` | Get one form with normalized options and optional fields |
+| `formidable/list-fields` | List normalized fields for a form |
+| `formidable/get-field` | Get one normalized field by ID |
+| `formidable/create-field` | Create a new field, including file upload fields |
+| `formidable/update-field` | Update an existing field, including file upload settings |
 | `formidable/list-styles` | List saved Formidable styles |
 | `formidable/find-form-usage` | Find post, widget, and Elementor usage of a form |
 | `formidable/clear-css-cache` | Clear and optionally rebuild generated CSS |
@@ -71,6 +76,15 @@ This add-on makes that promptable. You can ask the agent to inspect forms, find 
 - `clear-css-cache` clears the common Formidable CSS/settings transients and can rebuild generated CSS when Formidable style classes are available
 
 ## Changelog
+
+### 1.2.5
+- Added `formidable/get-form`, `formidable/list-fields`, `formidable/get-field`, `formidable/create-field`, and `formidable/update-field`
+- Added form cloning, form updates, post-meta updates, and action update abilities
+- Added normalized form/field helpers and Formidable-table read fallbacks for safer MCP inspection
+- Expanded the plugin so MCP clients can create and update file upload fields directly
+
+### 1.1.0
+- Internal release superseded by 1.2.5 before public package publication
 
 ### 1.0.4
 - Docs: expanded the WordPress-standard `readme.txt` so the published ZIP now includes fuller requirements, abilities, use cases, and Devenia ecosystem links
