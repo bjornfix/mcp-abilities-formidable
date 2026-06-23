@@ -1,10 +1,10 @@
 === MCP Abilities - Formidable ===
-Contributors: devenia
+Contributors: basicus
 Tags: forms, formidable, mcp, api, automation
 Requires at least: 6.9
-Tested up to: 6.9
+Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.2.5
+Stable tag: 1.2.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,11 @@ This add-on plugin extends [MCP Expose Abilities](https://devenia.com/plugins/mc
 * [All Add-on Plugins](https://devenia.com/plugins/mcp-expose-abilities/#add-ons)
 
 == Changelog ==
+
+= 1.2.6 =
+* Replace interpolated Formidable table SQL with prepared identifier placeholders.
+* Update tested WordPress version metadata for Plugin Check.
+* Align public release identity with the Basicus author/contributor rule.
 
 = 1.2.5 =
 * Added `formidable/get-form`, `formidable/list-fields`, `formidable/get-field`, `formidable/create-field`, and `formidable/update-field`

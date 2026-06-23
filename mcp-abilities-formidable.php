@@ -3,9 +3,9 @@
  * Plugin Name: MCP Abilities - Formidable
  * Plugin URI: https://github.com/bjornfix/mcp-abilities-formidable
  * Description: Formidable Forms abilities for MCP. Inspect forms, styles, settings, usage, and CSS cache/runtime behavior.
- * Version: 1.2.5
- * Author: Devenia
- * Author URI: https://devenia.com
+ * Version: 1.2.6
+ * Author: basicus
+ * Author URI: https://profiles.wordpress.org/basicus/
  * License: GPL-2.0+
  * License URI: http://www.gnu.org/licenses/gpl-2.0.txt
  * Requires at least: 6.9
@@ -343,9 +343,9 @@ function mcp_formidable_get_form_row_by_id( int $form_id ): ?object {
 
 	$table = mcp_formidable_table_name( 'frm_forms' );
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- MCP ability read.
-	$row = $wpdb->get_row(
-		$wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $form_id )
-	);
+		$row = $wpdb->get_row(
+			$wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', $table, $form_id )
+		);
 
 	if ( is_object( $row ) ) {
 		return $row;
@@ -389,9 +389,9 @@ function mcp_formidable_get_form_row_by_key( string $form_key ): ?object {
 
 	$table = mcp_formidable_table_name( 'frm_forms' );
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- MCP ability read fallback.
-	$row = $wpdb->get_row(
-		$wpdb->prepare( "SELECT * FROM {$table} WHERE form_key = %s LIMIT 1", $form_key )
-	);
+		$row = $wpdb->get_row(
+			$wpdb->prepare( 'SELECT * FROM %i WHERE form_key = %s LIMIT 1', $table, $form_key )
+		);
 
 	return is_object( $row ) ? $row : null;
 }
@@ -456,9 +456,9 @@ function mcp_formidable_get_field_row_by_id( int $field_id ): ?object {
 
 	$table = mcp_formidable_table_name( 'frm_fields' );
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- MCP ability read.
-	$row = $wpdb->get_row(
-		$wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $field_id )
-	);
+		$row = $wpdb->get_row(
+			$wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', $table, $field_id )
+		);
 
 	if ( is_object( $row ) ) {
 		return $row;
@@ -489,9 +489,9 @@ function mcp_formidable_get_field_rows_for_form( int $form_id ): array {
 
 	$table = mcp_formidable_table_name( 'frm_fields' );
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- MCP ability read.
-	$rows = $wpdb->get_results(
-		$wpdb->prepare( "SELECT * FROM {$table} WHERE form_id = %d ORDER BY field_order ASC, id ASC", $form_id )
-	);
+		$rows = $wpdb->get_results(
+			$wpdb->prepare( 'SELECT * FROM %i WHERE form_id = %d ORDER BY field_order ASC, id ASC', $table, $form_id )
+		);
 
 	if ( is_array( $rows ) && ! empty( $rows ) ) {
 		return array_values( array_filter( $rows, 'is_object' ) );
@@ -855,7 +855,7 @@ function mcp_formidable_table_columns( string $table ): array {
 	global $wpdb;
 
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema inspection for MCP write ability.
-	$columns = $wpdb->get_col( "DESCRIBE {$table}", 0 );
+	$columns = $wpdb->get_col( $wpdb->prepare( 'DESCRIBE %i', $table ), 0 );
 	return is_array( $columns ) ? array_map( 'strval', $columns ) : array();
 }
 
@@ -876,7 +876,7 @@ function mcp_formidable_unique_db_key( string $table, string $column, string $ba
 
 	while ( true ) {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Uniqueness check for create ability.
-		$exists = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE {$column} = %s", $key ) );
+		$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE %i = %s', $table, $column, $key ) );
 		if ( 0 === (int) $exists ) {
 			return $key;
 		}
@@ -1032,10 +1032,11 @@ function mcp_formidable_clone_form_internal( int $source_form_id, string $name, 
 
 	$actions_table = mcp_formidable_table_name( 'frm_form_actions' );
 	$actions_copied = 0;
-	if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $actions_table ) ) === $actions_table ) {
-		$action_cols = mcp_formidable_table_columns( $actions_table );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Controlled MCP clone operation.
-		$actions = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$actions_table} WHERE form_id = %d", $source_form_id ) );
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $actions_table ) ) === $actions_table ) {
+			$action_cols = mcp_formidable_table_columns( $actions_table );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Controlled MCP clone operation.
+			$actions = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE form_id = %d', $actions_table, $source_form_id ) );
 		if ( is_array( $actions ) ) {
 			foreach ( $actions as $action ) {
 				$action_data = array();
