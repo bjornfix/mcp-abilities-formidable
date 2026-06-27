@@ -4,7 +4,7 @@ Tags: forms, formidable, mcp, api, automation
 Requires at least: 6.9
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.2.6
+Stable tag: 1.2.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,10 @@ This add-on plugin extends [MCP Expose Abilities](https://devenia.com/plugins/mc
 * [All Add-on Plugins](https://devenia.com/plugins/mcp-expose-abilities/#add-ons)
 
 == Changelog ==
+
+= 1.2.7 =
+* Added explicit file upload field aliases for `max_file_size_mb`, `min_file_size_mb`, and `max_files_per_entry`.
+* Added normalized file field output for the same file upload limits.
 
 = 1.2.6 =
 * Replace interpolated Formidable table SQL with prepared identifier placeholders.

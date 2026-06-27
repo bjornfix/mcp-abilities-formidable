@@ -3,7 +3,7 @@
  * Plugin Name: MCP Abilities - Formidable
  * Plugin URI: https://github.com/bjornfix/mcp-abilities-formidable
  * Description: Formidable Forms abilities for MCP. Inspect forms, styles, settings, usage, and CSS cache/runtime behavior.
- * Version: 1.2.6
+ * Version: 1.2.7
  * Author: basicus
  * Author URI: https://profiles.wordpress.org/basicus/
  * License: GPL-2.0+
@@ -425,8 +425,7 @@ function mcp_formidable_normalize_field_payload( $value ): array {
 function mcp_formidable_normalize_field( object $field ): array {
 	$options       = mcp_formidable_normalize_field_payload( $field->options ?? array() );
 	$field_options = mcp_formidable_normalize_field_payload( $field->field_options ?? array() );
-
-	return array(
+	$normalized    = array(
 		'id'            => isset( $field->id ) ? (int) $field->id : 0,
 		'field_key'     => isset( $field->field_key ) ? (string) $field->field_key : '',
 		'form_id'       => isset( $field->form_id ) ? (int) $field->form_id : 0,
@@ -439,6 +438,44 @@ function mcp_formidable_normalize_field( object $field ): array {
 		'options'       => $options,
 		'field_options' => $field_options,
 	);
+
+	if ( 'file' === $normalized['type'] ) {
+		$normalized['max_file_size_mb']    = isset( $field_options['size'] ) ? (string) $field_options['size'] : '';
+		$normalized['min_file_size_mb']    = isset( $field_options['min_size'] ) ? (string) $field_options['min_size'] : '';
+		$normalized['max_files_per_entry'] = isset( $field_options['max'] ) ? (string) $field_options['max'] : '';
+	}
+
+	return $normalized;
+}
+
+/**
+ * Normalize a Formidable numeric field option.
+ *
+ * Formidable stores file upload size limits as MB strings in field_options.
+ *
+ * @param mixed $value Input value.
+ * @return string
+ */
+function mcp_formidable_normalize_numeric_option_string( $value ): string {
+	if ( '' === $value || null === $value ) {
+		return '';
+	}
+
+	if ( ! is_scalar( $value ) ) {
+		return '';
+	}
+
+	$value = trim( (string) $value );
+	if ( '' === $value || ! is_numeric( $value ) ) {
+		return '';
+	}
+
+	$number = max( 0, (float) $value );
+	if ( floor( $number ) === $number ) {
+		return (string) (int) $number;
+	}
+
+	return rtrim( rtrim( number_format( $number, 4, '.', '' ), '0' ), '.' );
 }
 
 /**
@@ -582,6 +619,15 @@ function mcp_formidable_build_field_payload( array $input, int $resolved_form_id
 	}
 	if ( array_key_exists( 'required', $input ) ) {
 		$field_options['required'] = ! empty( $input['required'] ) ? 1 : 0;
+	}
+	if ( array_key_exists( 'max_file_size_mb', $input ) ) {
+		$field_options['size'] = mcp_formidable_normalize_numeric_option_string( $input['max_file_size_mb'] );
+	}
+	if ( array_key_exists( 'min_file_size_mb', $input ) ) {
+		$field_options['min_size'] = mcp_formidable_normalize_numeric_option_string( $input['min_file_size_mb'] );
+	}
+	if ( array_key_exists( 'max_files_per_entry', $input ) ) {
+		$field_options['max'] = mcp_formidable_normalize_numeric_option_string( $input['max_files_per_entry'] );
 	}
 
 	$payload['options']       = $options;
@@ -1901,6 +1947,18 @@ function mcp_register_formidable_abilities(): void {
 					'required'      => array( 'type' => 'boolean' ),
 					'options'       => array( 'type' => 'object' ),
 					'field_options' => array( 'type' => 'object' ),
+					'max_file_size_mb' => array(
+						'type'        => array( 'number', 'string' ),
+						'description' => 'For file fields, set the maximum file size in MB. Maps to Formidable field_options.size.',
+					),
+					'min_file_size_mb' => array(
+						'type'        => array( 'number', 'string' ),
+						'description' => 'For file fields, set the minimum file size in MB. Maps to Formidable field_options.min_size.',
+					),
+					'max_files_per_entry' => array(
+						'type'        => array( 'integer', 'string' ),
+						'description' => 'For multiple file fields, set the maximum number of files per entry. Maps to Formidable field_options.max.',
+					),
 				),
 				'additionalProperties' => false,
 			),
@@ -1972,6 +2030,18 @@ function mcp_register_formidable_abilities(): void {
 					'required'      => array( 'type' => 'boolean' ),
 					'options'       => array( 'type' => 'object' ),
 					'field_options' => array( 'type' => 'object' ),
+					'max_file_size_mb' => array(
+						'type'        => array( 'number', 'string' ),
+						'description' => 'For file fields, set the maximum file size in MB. Maps to Formidable field_options.size.',
+					),
+					'min_file_size_mb' => array(
+						'type'        => array( 'number', 'string' ),
+						'description' => 'For file fields, set the minimum file size in MB. Maps to Formidable field_options.min_size.',
+					),
+					'max_files_per_entry' => array(
+						'type'        => array( 'integer', 'string' ),
+						'description' => 'For multiple file fields, set the maximum number of files per entry. Maps to Formidable field_options.max.',
+					),
 				),
 				'additionalProperties' => false,
 			),

@@ -8,7 +8,7 @@ Formidable Forms abilities for MCP. Inspect forms, styles, settings, usage, and 
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-purple.svg)](https://php.net)
 
 **Tested up to:** 7.0
-**Stable tag:** 1.2.6
+**Stable tag:** 1.2.7
 **License:** GPLv2 or later
 **License URI:** https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -133,6 +133,10 @@ If you skip base-stack verification and start with add-ons immediately, troubles
 - `clear-css-cache` clears the common Formidable CSS/settings transients and can rebuild generated CSS when Formidable style classes are available
 
 ## Changelog
+
+### 1.2.7
+- Added explicit file upload field aliases for `max_file_size_mb`, `min_file_size_mb`, and `max_files_per_entry`.
+- Added normalized file field output for the same file upload limits.
 
 ### 1.2.6
 - Replace interpolated Formidable table SQL with prepared identifier placeholders.
