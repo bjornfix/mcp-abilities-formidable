@@ -3,7 +3,7 @@
  * Plugin Name: MCP Abilities - Formidable
  * Plugin URI: https://github.com/bjornfix/mcp-abilities-formidable
  * Description: Formidable Forms abilities for MCP. Inspect forms, styles, settings, usage, and CSS cache/runtime behavior.
- * Version: 1.2.8
+ * Version: 1.2.9
  * Author: basicus
  * Author URI: https://profiles.wordpress.org/basicus/
  * License: GPL-2.0+
@@ -210,6 +210,47 @@ function mcp_formidable_clear_field_runtime_cache( int $field_id, int $form_id =
 	if ( $form_id && class_exists( 'FrmField' ) && method_exists( 'FrmField', 'delete_form_transient' ) ) {
 		FrmField::delete_form_transient( $form_id );
 	}
+}
+
+/**
+ * Clear Formidable form caches after form writes.
+ *
+ * @param int $form_id Form ID.
+ */
+function mcp_formidable_clear_form_runtime_cache( int $form_id ): void {
+	wp_cache_delete( $form_id, 'frm_form' );
+
+	if ( class_exists( 'FrmDb' ) && method_exists( 'FrmDb', 'cache_delete_group' ) ) {
+		FrmDb::cache_delete_group( 'frm_form' );
+	}
+
+	mcp_formidable_clear_field_runtime_cache( 0, $form_id );
+}
+
+/**
+ * Sanitize Formidable form option values while preserving nested structures.
+ *
+ * @param mixed $value Raw option value.
+ * @return mixed
+ */
+function mcp_formidable_sanitize_form_option_value( $value ) {
+	if ( is_array( $value ) ) {
+		$sanitized = array();
+		foreach ( $value as $key => $inner_value ) {
+			$sanitized[ sanitize_key( (string) $key ) ] = mcp_formidable_sanitize_form_option_value( $inner_value );
+		}
+		return $sanitized;
+	}
+
+	if ( is_bool( $value ) || is_int( $value ) || is_float( $value ) || null === $value ) {
+		return $value;
+	}
+
+	if ( is_scalar( $value ) ) {
+		return wp_kses_post( (string) $value );
+	}
+
+	return '';
 }
 
 /**
@@ -821,6 +862,12 @@ function mcp_formidable_update_form_internal( int $form_id, array $payload ): ar
 	if ( array_key_exists( 'form_key', $payload ) && in_array( 'form_key', $columns, true ) ) {
 		$update['form_key'] = sanitize_key( (string) $payload['form_key'] );
 	}
+	if ( array_key_exists( 'options', $payload ) && is_array( $payload['options'] ) && in_array( 'options', $columns, true ) ) {
+		$options = mcp_formidable_normalize_field_payload( $form->options ?? array() );
+		$options = array_replace_recursive( $options, mcp_formidable_sanitize_form_option_value( $payload['options'] ) );
+
+		$update['options'] = maybe_serialize( $options );
+	}
 
 	if ( empty( $update ) ) {
 		return array(
@@ -837,6 +884,8 @@ function mcp_formidable_update_form_internal( int $form_id, array $payload ): ar
 			'message' => 'Form update failed: ' . $wpdb->last_error,
 		);
 	}
+
+	mcp_formidable_clear_form_runtime_cache( $form_id );
 
 	$updated = mcp_formidable_get_form_row_by_id( $form_id );
 
@@ -2132,7 +2181,7 @@ function mcp_register_formidable_abilities(): void {
 		'formidable/update-form',
 		array(
 			'label'               => 'Update Formidable Form',
-			'description'         => 'Update basic Formidable form properties such as name and description.',
+			'description'         => 'Update Formidable form properties and native form options.',
 			'category'            => 'site',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -2142,6 +2191,10 @@ function mcp_register_formidable_abilities(): void {
 					'name'        => array( 'type' => 'string' ),
 					'description' => array( 'type' => 'string' ),
 					'form_key'    => array( 'type' => 'string' ),
+					'options'     => array(
+						'type'        => 'object',
+						'description' => 'Native Formidable form options to merge into the existing serialized form options.',
+					),
 				),
 				'additionalProperties' => false,
 			),

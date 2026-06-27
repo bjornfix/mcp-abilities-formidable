@@ -4,7 +4,7 @@ Tags: forms, formidable, mcp, api, automation
 Requires at least: 6.9
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.2.8
+Stable tag: 1.2.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,10 @@ This add-on plugin extends [MCP Expose Abilities](https://devenia.com/plugins/mc
 * [All Add-on Plugins](https://devenia.com/plugins/mcp-expose-abilities/#add-ons)
 
 == Changelog ==
+
+= 1.2.9 =
+* Added native `options` merge support to `formidable/update-form` for targeted Formidable form setting updates.
+* Clear Formidable form and field runtime caches after form updates.
 
 = 1.2.8 =
 * Use Formidable's native field update path for `formidable/update-field` so file upload settings run Formidable filters and clear form field transients.
