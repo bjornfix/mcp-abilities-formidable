@@ -3,7 +3,7 @@
  * Plugin Name: MCP Abilities - Formidable
  * Plugin URI: https://github.com/bjornfix/mcp-abilities-formidable
  * Description: Formidable Forms abilities for MCP. Inspect forms, styles, settings, usage, and CSS cache/runtime behavior.
- * Version: 1.2.7
+ * Version: 1.2.8
  * Author: basicus
  * Author URI: https://profiles.wordpress.org/basicus/
  * License: GPL-2.0+
@@ -192,6 +192,24 @@ function mcp_formidable_clear_runtime_transients(): void {
 	delete_transient( 'frmpro_css' );
 	delete_transient( 'frm_options' );
 	delete_transient( 'frmpro_options' );
+}
+
+/**
+ * Clear Formidable field caches and form field transients after field writes.
+ *
+ * @param int $field_id Field ID.
+ * @param int $form_id  Form ID.
+ */
+function mcp_formidable_clear_field_runtime_cache( int $field_id, int $form_id = 0 ): void {
+	wp_cache_delete( $field_id, 'frm_field' );
+
+	if ( class_exists( 'FrmDb' ) && method_exists( 'FrmDb', 'cache_delete_group' ) ) {
+		FrmDb::cache_delete_group( 'frm_field' );
+	}
+
+	if ( $form_id && class_exists( 'FrmField' ) && method_exists( 'FrmField', 'delete_form_transient' ) ) {
+		FrmField::delete_form_transient( $form_id );
+	}
 }
 
 /**
@@ -677,6 +695,22 @@ function mcp_formidable_create_field_internal( array $payload ): array {
 function mcp_formidable_update_field_internal( int $field_id, array $payload ): array {
 	global $wpdb;
 
+	$current = mcp_formidable_get_field_row_by_id( $field_id );
+	if ( ! $current ) {
+		return array(
+			'success' => false,
+			'message' => 'Field not found.',
+		);
+	}
+
+	$form_id = isset( $current->form_id ) ? (int) $current->form_id : 0;
+	if ( ! isset( $payload['form_id'] ) && $form_id ) {
+		$payload['form_id'] = $form_id;
+	}
+	if ( ! isset( $payload['type'] ) && isset( $current->type ) ) {
+		$payload['type'] = (string) $current->type;
+	}
+
 	$table   = mcp_formidable_table_name( 'frm_fields' );
 	$columns = mcp_formidable_table_columns( $table );
 	if ( empty( $columns ) ) {
@@ -692,6 +726,7 @@ function mcp_formidable_update_field_internal( int $field_id, array $payload ): 
 		'type',
 		'default_value',
 		'field_key',
+		'form_id',
 		'field_order',
 		'options',
 		'field_options',
@@ -703,12 +738,7 @@ function mcp_formidable_update_field_internal( int $field_id, array $payload ): 
 			continue;
 		}
 
-		$value = $payload[ $key ];
-		if ( 'options' === $key || 'field_options' === $key ) {
-			$value = maybe_serialize( $value );
-		}
-
-		$update[ $key ] = $value;
+		$update[ $key ] = $payload[ $key ];
 	}
 
 	if ( empty( $update ) ) {
@@ -718,19 +748,32 @@ function mcp_formidable_update_field_internal( int $field_id, array $payload ): 
 		);
 	}
 
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- MCP field update ability.
-	$result = $wpdb->update( $table, $update, array( 'id' => $field_id ) );
-	if ( false === $result ) {
-		return array(
-			'success' => false,
-			'message' => 'Field update failed: ' . $wpdb->last_error,
-		);
+	if ( class_exists( 'FrmField' ) && method_exists( 'FrmField', 'update' ) ) {
+		$result = FrmField::update( $field_id, $update );
+		if ( false === $result ) {
+			return array(
+				'success' => false,
+				'message' => 'Field update failed through Formidable field API.',
+			);
+		}
+	} else {
+		foreach ( array( 'options', 'field_options' ) as $serialized_key ) {
+			if ( isset( $update[ $serialized_key ] ) && is_array( $update[ $serialized_key ] ) ) {
+				$update[ $serialized_key ] = maybe_serialize( $update[ $serialized_key ] );
+			}
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- MCP field update ability fallback for Formidable versions without FrmField::update().
+		$result = $wpdb->update( $table, $update, array( 'id' => $field_id ) );
+		if ( false === $result ) {
+			return array(
+				'success' => false,
+				'message' => 'Field update failed: ' . $wpdb->last_error,
+			);
+		}
 	}
 
-	wp_cache_delete( $field_id, 'frm_field' );
-	if ( class_exists( 'FrmField' ) && method_exists( 'FrmField', 'clear_cache' ) ) {
-		FrmField::clear_cache();
-	}
+	mcp_formidable_clear_field_runtime_cache( $field_id, $form_id );
 
 	$field = mcp_formidable_get_field_row_by_id( $field_id );
 
