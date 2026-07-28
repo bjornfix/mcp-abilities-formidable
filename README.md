@@ -2,7 +2,7 @@
 
 Formidable Forms abilities for MCP. Inspect forms, styles, settings, usage, and CSS cache/runtime behavior.
 
-[![GitHub release](https://img.shields.io/github/v/release/bjornfix/mcp-abilities-formidable)](https://github.com/bjornfix/mcp-abilities-formidable/releases)
+[![Release 1.2.9](https://img.shields.io/badge/release-1.2.9-blue.svg)](https://downloads.devenia.com/mcp-abilities-formidable.zip)
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/gpl-2.0)
 [![WordPress](https://img.shields.io/badge/WordPress-6.9%2B-blue.svg)](https://wordpress.org)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-purple.svg)](https://php.net)
@@ -86,7 +86,7 @@ It is especially useful when the manual version is repetitive enough that import
 Start with the main plugin page and base stack documentation:
 
 - [MCP Expose Abilities](https://devenia.com/plugins/mcp-expose-abilities/)
-- [Plugin Page](https://devenia.com/plugins/mcp-expose-abilities/#add-ons)
+- [Plugin page](https://devenia.com/plugins/mcp-abilities-formidable/)
 - [Getting Started](https://github.com/bjornfix/mcp-expose-abilities/wiki/Getting-Started)
 - [Install Order and Dependencies](https://github.com/bjornfix/mcp-expose-abilities/wiki/Install-Order-and-Dependencies)
 
