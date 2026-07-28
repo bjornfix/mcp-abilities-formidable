@@ -107,7 +107,7 @@ If you are new to the stack, use this order:
 
 If you skip base-stack verification and start with add-ons immediately, troubleshooting gets harder than it needs to be.
 
-## Abilities (11)
+## Abilities (15)
 
 | Ability | Description |
 |---------|-------------|
@@ -115,10 +115,14 @@ If you skip base-stack verification and start with add-ons immediately, troubles
 | `formidable/update-settings` | Update supported runtime and style settings |
 | `formidable/list-forms` | List forms with IDs, keys, styles, and shortcode refs |
 | `formidable/get-form` | Get one form with normalized options and optional fields |
+| `formidable/clone-form` | Clone a form, its fields, and its form actions |
+| `formidable/update-form` | Update form properties and native form options |
 | `formidable/list-fields` | List normalized fields for a form |
 | `formidable/get-field` | Get one normalized field by ID |
 | `formidable/create-field` | Create a new field, including file upload fields |
 | `formidable/update-field` | Update an existing field, including file upload settings |
+| `formidable/update-action` | Update a form action using structured settings |
+| `formidable/update-post-meta` | Update permitted metadata on a related WordPress post |
 | `formidable/list-styles` | List saved Formidable styles |
 | `formidable/find-form-usage` | Find post, widget, and Elementor usage of a form |
 | `formidable/clear-css-cache` | Clear and optionally rebuild generated CSS |
