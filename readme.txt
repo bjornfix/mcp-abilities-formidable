@@ -2,116 +2,79 @@
 Contributors: basicus
 Tags: forms, formidable, mcp, api, automation
 Requires at least: 6.9
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.9
+Stable tag: 1.2.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Formidable Forms abilities for MCP. Inspect forms, fields, styles, settings, usage, and CSS cache/runtime behavior via the Abilities API.
+Inspect Formidable forms, copy them with native field and action handling, and update selected settings through authenticated MCP abilities.
 
 == Description ==
 
-This add-on plugin extends [MCP Expose Abilities](https://devenia.com/plugins/mcp-expose-abilities/) with Formidable Forms inspection and configuration tools.
+Fifteen abilities connect Formidable forms, fields, styles, settings and supported usage locations to the WordPress Abilities API. Inspect a form before changing it and read back its resulting IDs, keys and options.
+
+Tested with WordPress 7.1-RC3.
 
 = Requirements =
 
-* [MCP Expose Abilities](https://github.com/bjornfix/mcp-expose-abilities) (core plugin)
-* [Formidable Forms](https://wordpress.org/plugins/formidable/) plugin
+* WordPress 6.9 or newer with its built-in Abilities API; PHP 8.0 or newer.
+* WordPress MCP Adapter for MCP transport.
+* [MCP Expose Abilities](https://devenia.com/plugins/mcp-expose-abilities/) for the Devenia exposure workflow.
+* [Formidable Forms](https://wordpress.org/plugins/formidable/) with the native APIs used by the requested operation.
+* An authenticated user with the appropriate WordPress capabilities.
 
-= Abilities Included =
+Premium fields and actions retain their Formidable edition or add-on requirements.
 
-**formidable/get-settings** - Read effective Formidable runtime/style settings plus raw `frm_options` and `frmpro_options`.
+= Abilities =
 
-**formidable/update-settings** - Update supported runtime/style settings such as `load_style`, `custom_style`, `custom_css`, and clear/rebuild CSS cache.
+* formidable/get-settings: Effective settings plus raw Formidable and Pro options.
+* formidable/update-settings: Supported native style/runtime settings and optional CSS rebuild.
+* formidable/list-forms: Form IDs, keys, style references and shortcodes.
+* formidable/get-form: One form with options and optional fields.
+* formidable/clone-form: Native form, field and action duplication; new IDs and key mappings.
+* formidable/update-form: Name, description, key and merged form options.
+* formidable/list-fields: Normalized fields belonging to a form.
+* formidable/get-field: One normalized field by ID.
+* formidable/create-field: A new field on an existing form.
+* formidable/update-field: Field properties, required status, choices and options.
+* formidable/update-action: A Formidable action post's title, type or JSON settings.
+* formidable/update-post-meta: Permitted metadata on an explicit WordPress post.
+* formidable/list-styles: Saved styles and an optional virtual default entry.
+* formidable/find-form-usage: Supported post-content, Elementor and widget references.
+* formidable/clear-css-cache: Clear runtime/style transients and optionally regenerate CSS.
 
-**formidable/list-forms** - List saved Formidable forms with IDs, keys, style linkage, and shortcode references.
+= Boundaries =
 
-**formidable/get-form** - Get one form with normalized options and optional normalized fields.
+Reading forms, fields, styles and usage requires edit_posts. Global settings and CSS cache operations require manage_options. Form, field and action writes require frm_edit_forms or manage_options. Post metadata writes also check the exact post and all requested keys before writing; they are not restricted to form-linked posts.
 
-**formidable/list-fields** - List normalized fields for a form.
+Formidable owns duplication, field references and registered action hooks. Copies do not include submitted entries or translated labels. Use the returned form key because Formidable ensures uniqueness. Option updates preserve the form's publication status. File upload size aliases use MB.
 
-**formidable/get-field** - Get one normalized field by ID.
+Global settings use the native settings object. Legacy properties are rejected when unavailable. Usage search covers supported post content, Elementor data and Formidable widgets within the supplied limits; it is not an exhaustive dependency map. CSS regeneration depends on the installed style classes.
 
-**formidable/create-field** - Create a field on a form, including file upload fields.
-
-**formidable/update-field** - Update an existing field, including file upload settings.
-
-**formidable/list-styles** - List saved Formidable styles plus the synthetic default style entry.
-
-**formidable/find-form-usage** - Find where a form is referenced in post content, Elementor data, and `widget_frm_show_form`.
-
-**formidable/clear-css-cache** - Clear Formidable CSS/settings transients and optionally rebuild generated CSS.
-
-= Use Cases =
-
-* Audit how Formidable CSS is loaded on a site
-* Reduce frontend CSS overhead safely by changing `load_style`
-* Find all content that embeds a given form
-* Inspect form/style inventory before migrations or redesigns
-* Create or update file upload fields from MCP
-* Clear and rebuild generated Formidable CSS after settings updates
+The add-on has no general undo or separate confirmation step. A successful stored change does not verify email delivery or frontend submission behaviour. Inspect and test the rendered form after configuration changes.
 
 == Installation ==
 
-1. Install the required plugins (Abilities API, MCP Adapter, MCP Expose Abilities, Formidable Forms)
-2. Download the latest release
-3. Upload `mcp-abilities-formidable` to `/wp-content/plugins/`
-4. Activate through the 'Plugins' menu
-5. The abilities are now available via the MCP endpoint
-
-= Links =
-
-* [Plugin Page](https://devenia.com/plugins/mcp-expose-abilities/)
-* [Core Plugin (MCP Expose Abilities)](https://github.com/bjornfix/mcp-expose-abilities)
-* [All Add-on Plugins](https://devenia.com/plugins/mcp-expose-abilities/#add-ons)
+1. Activate Formidable and configure the required MCP stack.
+2. Download and upload the ZIP through Plugins > Add New > Upload Plugin.
+3. Activate the add-on and confirm ability discovery.
+4. List forms, inspect the selected ID, and then request the intended change.
 
 == Changelog ==
 
+= 1.2.10 =
+* Use native models for form and field reads, updates and duplication.
+* Preserve native field references and actions during copying, with cleanup after failed follow-up updates.
+* Store required fields through their native property.
+* Save settings through the shared Formidable settings object and verify persistence.
+* Preserve metadata backslashes, check all requested key permissions first, and report storage failures.
+
 = 1.2.9 =
-* Added native `options` merge support to `formidable/update-form` for targeted Formidable form setting updates.
-* Clear Formidable form and field runtime caches after form updates.
+* Add merged form-option updates and clear caches after form changes.
 
-= 1.2.8 =
-* Use Formidable's native field update path for `formidable/update-field` so file upload settings run Formidable filters and clear form field transients.
-* Clear Formidable field runtime caches after field updates.
+== Links ==
 
-= 1.2.7 =
-* Added explicit file upload field aliases for `max_file_size_mb`, `min_file_size_mb`, and `max_files_per_entry`.
-* Added normalized file field output for the same file upload limits.
-
-= 1.2.6 =
-* Replace interpolated Formidable table SQL with prepared identifier placeholders.
-* Update tested WordPress version metadata for Plugin Check.
-* Align public release identity with the Basicus author/contributor rule.
-
-= 1.2.5 =
-* Added `formidable/get-form`, `formidable/list-fields`, `formidable/get-field`, `formidable/create-field`, and `formidable/update-field`
-* Added form cloning, form updates, post-meta updates, and action update abilities
-* Added normalized form/field helpers and Formidable-table read fallbacks for safer MCP inspection
-* Expanded the plugin so MCP clients can create and update file upload fields directly
-
-= 1.1.0 =
-* Internal release superseded by 1.2.5 before public package publication
-
-= 1.0.4 =
-* Docs: expanded the WordPress-standard `readme.txt` so the published ZIP now includes fuller requirements, abilities, use cases, and Devenia ecosystem links
-
-= 1.0.3 =
-* Changed the remaining abilities to use the core `site` category for compatibility with the current Abilities API stack
-
-= 1.0.2 =
-* Fixed missing text domains in translated strings for WordPress.org plugin checks
-
-= 1.0.1 =
-* Fixed ability registration to use the required `wp_abilities_api_init` hook
-* Added registration for the `content` ability category before registering content-related abilities
-
-= 1.0.0 =
-* Initial release
-* Added `formidable/get-settings`
-* Added `formidable/update-settings`
-* Added `formidable/list-forms`
-* Added `formidable/list-styles`
-* Added `formidable/find-form-usage`
-* Added `formidable/clear-css-cache`
+* [Plugin page](https://devenia.com/plugins/mcp-abilities-formidable/)
+* [Download](https://downloads.devenia.com/mcp-abilities-formidable.zip)
+* [MCP Expose Abilities](https://devenia.com/plugins/mcp-expose-abilities/)

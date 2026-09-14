@@ -1,13 +1,13 @@
 <?php
 /**
  * Plugin Name: MCP Abilities - Formidable
- * Plugin URI: https://github.com/bjornfix/mcp-abilities-formidable
+ * Plugin URI: https://devenia.com/plugins/mcp-abilities-formidable/
  * Description: Formidable Forms abilities for MCP. Inspect forms, styles, settings, usage, and CSS cache/runtime behavior.
- * Version: 1.2.9
+ * Version: 1.2.10
  * Author: basicus
  * Author URI: https://profiles.wordpress.org/basicus/
  * License: GPL-2.0+
- * License URI: http://www.gnu.org/licenses/gpl-2.0.txt
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires at least: 6.9
  * Requires PHP: 8.0
  *
@@ -28,7 +28,7 @@ function mcp_formidable_check_dependencies(): bool {
 		add_action(
 			'admin_notices',
 			function () {
-				echo '<div class="notice notice-error"><p><strong>MCP Abilities - Formidable</strong> requires the <a href="https://github.com/WordPress/abilities-api">Abilities API</a> plugin to be installed and activated.</p></div>';
+				echo '<div class="notice notice-error"><p><strong>MCP Abilities - Formidable</strong> requires WordPress 6.9 or newer with the <a href="https://developer.wordpress.org/apis/abilities-api/">Abilities API</a> available.</p></div>';
 			}
 		);
 		return false;
@@ -153,36 +153,44 @@ function mcp_formidable_sanitize_setting_value( string $key, $value ) {
 	}
 
 	if ( 'string' === $mode ) {
-		return is_string( $value ) ? wp_kses_post( $value ) : '';
+		return is_string( $value ) ? sanitize_textarea_field( $value ) : '';
 	}
 
 	return $value;
 }
 
 /**
- * Persist a Formidable option object/array.
+ * Store supported properties through Formidable's shared settings object.
  *
- * @param string               $option_name Option name.
- * @param array<string,mixed>  $changes     Setting changes.
- * @return bool
+ * @param array<string,mixed> $changes Sanitized setting changes.
+ * @return array<string,mixed>
  */
-function mcp_formidable_update_option_settings( string $option_name, array $changes ): bool {
-	$current = get_option( $option_name, null );
-	if ( null === $current ) {
-		return false;
+function mcp_formidable_store_settings( array $changes ): array {
+	$settings = mcp_formidable_get_settings_object();
+	if ( ! is_callable( array( $settings, 'store' ) ) ) {
+		return array( 'success' => false, 'message' => 'Formidable settings storage API is unavailable.' );
 	}
-
 	foreach ( $changes as $key => $value ) {
-		if ( is_object( $current ) ) {
-			$current->{$key} = $value;
-		} elseif ( is_array( $current ) ) {
-			$current[ $key ] = $value;
-		} else {
-			return false;
+		if ( ! property_exists( $settings, $key ) ) {
+			return array( 'success' => false, 'message' => 'Setting is unavailable in this Formidable version: ' . $key );
 		}
 	}
-
-	return update_option( $option_name, $current );
+	$previous = clone $settings;
+	foreach ( $changes as $key => $value ) {
+		$settings->{$key} = $value;
+	}
+	$settings->store();
+	$saved = mcp_formidable_normalize_option_value( get_option( 'frm_options', array() ) );
+	foreach ( $changes as $key => $value ) {
+		if ( ! array_key_exists( $key, $saved ) || $saved[ $key ] !== $value ) {
+			foreach ( $changes as $restore_key => $unused ) {
+				$settings->{$restore_key} = $previous->{$restore_key};
+			}
+			mcp_formidable_clear_runtime_transients();
+			return array( 'success' => false, 'message' => 'Formidable settings could not be saved.' );
+		}
+	}
+	return array( 'success' => true );
 }
 
 /**
@@ -368,7 +376,6 @@ function mcp_formidable_resolve_form( int $form_id, string $form_key ): array {
 	);
 }
 
-
 /**
  * Return whether the current user may edit Formidable forms.
  */
@@ -377,82 +384,33 @@ function mcp_formidable_can_edit_forms(): bool {
 }
 
 /**
- * Return a normalized table name for Formidable tables.
- *
- * @param string $suffix Table suffix without prefix.
- */
-function mcp_formidable_table_name( string $suffix ): string {
-	global $wpdb;
-
-	return $wpdb->prefix . ltrim( $suffix, '_' );
-}
-
-/**
- * Get a raw Formidable form row by ID.
+ * Get a Formidable form through the native model by ID.
  *
  * @param int $form_id Form ID.
  * @return object|null
  */
 function mcp_formidable_get_form_row_by_id( int $form_id ): ?object {
-	global $wpdb;
-
-	if ( $form_id <= 0 ) {
+	if ( $form_id <= 0 || ! is_callable( array( 'FrmForm', 'getOne' ) ) ) {
 		return null;
 	}
-
-	$table = mcp_formidable_table_name( 'frm_forms' );
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- MCP ability read.
-		$row = $wpdb->get_row(
-			$wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', $table, $form_id )
-		);
-
-	if ( is_object( $row ) ) {
-		return $row;
-	}
-
-	if ( class_exists( 'FrmForm' ) && method_exists( 'FrmForm', 'getOne' ) ) {
-		$form = FrmForm::getOne( $form_id );
-		if ( is_object( $form ) ) {
-			return $form;
-		}
-	}
-
-	return null;
+	$form = FrmForm::getOne( $form_id );
+	return is_object( $form ) ? $form : null;
 }
 
 /**
- * Get a raw Formidable form row by key.
+ * Get a Formidable form through the native model by key.
  *
  * @param string $form_key Form key.
  * @return object|null
  */
 function mcp_formidable_get_form_row_by_key( string $form_key ): ?object {
-	global $wpdb;
-
 	$form_key = sanitize_key( $form_key );
-	if ( '' === $form_key ) {
+	if ( '' === $form_key || ! is_callable( array( 'FrmForm', 'getAll' ) ) ) {
 		return null;
 	}
-
-	if ( class_exists( 'FrmForm' ) && method_exists( 'FrmForm', 'getAll' ) ) {
-		$rows = FrmForm::getAll(
-			array(
-				'form_key' => $form_key,
-			),
-			'name ASC'
-		);
-		if ( is_array( $rows ) && ! empty( $rows[0] ) && is_object( $rows[0] ) ) {
-			return $rows[0];
-		}
-	}
-
-	$table = mcp_formidable_table_name( 'frm_forms' );
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- MCP ability read fallback.
-		$row = $wpdb->get_row(
-			$wpdb->prepare( 'SELECT * FROM %i WHERE form_key = %s LIMIT 1', $table, $form_key )
-		);
-
-	return is_object( $row ) ? $row : null;
+	$forms = FrmForm::getAll( array( 'form_key' => $form_key ) );
+	$form = is_array( $forms ) ? reset( $forms ) : null;
+	return is_object( $form ) ? $form : null;
 }
 
 /**
@@ -492,7 +450,7 @@ function mcp_formidable_normalize_field( object $field ): array {
 		'description'   => isset( $field->description ) ? (string) $field->description : '',
 		'type'          => isset( $field->type ) ? (string) $field->type : '',
 		'default_value' => isset( $field->default_value ) ? (string) $field->default_value : '',
-		'required'      => ! empty( $field_options['required'] ) || ! empty( $options['required'] ),
+		'required'      => ! empty( $field->required ),
 		'field_order'   => isset( $field->field_order ) ? (int) $field->field_order : 0,
 		'options'       => $options,
 		'field_options' => $field_options,
@@ -538,36 +496,17 @@ function mcp_formidable_normalize_numeric_option_string( $value ): string {
 }
 
 /**
- * Resolve a raw field row by ID.
+ * Resolve a field through the native model by ID.
  *
  * @param int $field_id Field ID.
  * @return object|null
  */
 function mcp_formidable_get_field_row_by_id( int $field_id ): ?object {
-	global $wpdb;
-
-	if ( $field_id <= 0 ) {
+	if ( $field_id <= 0 || ! is_callable( array( 'FrmField', 'getOne' ) ) ) {
 		return null;
 	}
-
-	$table = mcp_formidable_table_name( 'frm_fields' );
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- MCP ability read.
-		$row = $wpdb->get_row(
-			$wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', $table, $field_id )
-		);
-
-	if ( is_object( $row ) ) {
-		return $row;
-	}
-
-	if ( class_exists( 'FrmField' ) && method_exists( 'FrmField', 'getOne' ) ) {
-		$field = FrmField::getOne( $field_id );
-		if ( is_object( $field ) ) {
-			return $field;
-		}
-	}
-
-	return null;
+	$field = FrmField::getOne( $field_id );
+	return is_object( $field ) ? $field : null;
 }
 
 /**
@@ -577,30 +516,11 @@ function mcp_formidable_get_field_row_by_id( int $field_id ): ?object {
  * @return array<int,object>
  */
 function mcp_formidable_get_field_rows_for_form( int $form_id ): array {
-	global $wpdb;
-
-	if ( $form_id <= 0 ) {
+	if ( $form_id <= 0 || ! is_callable( array( 'FrmField', 'get_all_for_form' ) ) ) {
 		return array();
 	}
-
-	$table = mcp_formidable_table_name( 'frm_fields' );
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- MCP ability read.
-		$rows = $wpdb->get_results(
-			$wpdb->prepare( 'SELECT * FROM %i WHERE form_id = %d ORDER BY field_order ASC, id ASC', $table, $form_id )
-		);
-
-	if ( is_array( $rows ) && ! empty( $rows ) ) {
-		return array_values( array_filter( $rows, 'is_object' ) );
-	}
-
-	if ( class_exists( 'FrmField' ) && method_exists( 'FrmField', 'get_all_for_form' ) ) {
-		$rows = FrmField::get_all_for_form( $form_id, '', 'field_order ASC' );
-		if ( is_array( $rows ) ) {
-			return array_values( array_filter( $rows, 'is_object' ) );
-		}
-	}
-
-	return array();
+	$rows = FrmField::get_all_for_form( $form_id );
+	return is_array( $rows ) ? array_values( array_filter( $rows, 'is_object' ) ) : array();
 }
 
 /**
@@ -677,7 +597,8 @@ function mcp_formidable_build_field_payload( array $input, int $resolved_form_id
 		$field_options = array_replace_recursive( $field_options, $input['field_options'] );
 	}
 	if ( array_key_exists( 'required', $input ) ) {
-		$field_options['required'] = ! empty( $input['required'] ) ? 1 : 0;
+		$payload['required'] = ! empty( $input['required'] ) ? 1 : 0;
+		unset( $field_options['required'] );
 	}
 	if ( array_key_exists( 'max_file_size_mb', $input ) ) {
 		$field_options['size'] = mcp_formidable_normalize_numeric_option_string( $input['max_file_size_mb'] );
@@ -696,6 +617,21 @@ function mcp_formidable_build_field_payload( array $input, int $resolved_form_id
 }
 
 /**
+ * Prepare field input for native storage and its unslashed readback.
+ *
+ * @param array<string,mixed> $payload Unslashed ability input.
+ * @return array<string,mixed>
+ */
+function mcp_formidable_prepare_native_field_input( array $payload ): array {
+	$prepared = wp_slash( $payload );
+	// The native model applies its own escaping to the format expression.
+	if ( isset( $payload['field_options']['format'] ) ) {
+		$prepared['field_options']['format'] = $payload['field_options']['format'];
+	}
+	return $prepared;
+}
+
+/**
  * Create a Formidable field through Formidable APIs.
  *
  * @param array<string,mixed> $payload Field payload.
@@ -709,7 +645,7 @@ function mcp_formidable_create_field_internal( array $payload ): array {
 		);
 	}
 
-	$field_id = FrmField::create( $payload, true );
+	$field_id = FrmField::create( mcp_formidable_prepare_native_field_input( $payload ), true );
 	$field_id = is_numeric( $field_id ) ? (int) $field_id : 0;
 	$field    = mcp_formidable_get_field_row_by_id( $field_id );
 
@@ -734,7 +670,6 @@ function mcp_formidable_create_field_internal( array $payload ): array {
  * @return array{success:bool,field?:array<string,mixed>,message?:string}
  */
 function mcp_formidable_update_field_internal( int $field_id, array $payload ): array {
-	global $wpdb;
 
 	$current = mcp_formidable_get_field_row_by_id( $field_id );
 	if ( ! $current ) {
@@ -752,13 +687,8 @@ function mcp_formidable_update_field_internal( int $field_id, array $payload ): 
 		$payload['type'] = (string) $current->type;
 	}
 
-	$table   = mcp_formidable_table_name( 'frm_fields' );
-	$columns = mcp_formidable_table_columns( $table );
-	if ( empty( $columns ) ) {
-		return array(
-			'success' => false,
-			'message' => 'Formidable fields table is unavailable.',
-		);
+	if ( ! is_callable( array( 'FrmField', 'update' ) ) ) {
+		return array( 'success' => false, 'message' => 'Formidable field update API is unavailable.' );
 	}
 
 	$allowed = array(
@@ -769,13 +699,14 @@ function mcp_formidable_update_field_internal( int $field_id, array $payload ): 
 		'field_key',
 		'form_id',
 		'field_order',
+		'required',
 		'options',
 		'field_options',
 	);
 	$update  = array();
 
 	foreach ( $allowed as $key ) {
-		if ( ! array_key_exists( $key, $payload ) || ! in_array( $key, $columns, true ) ) {
+		if ( ! array_key_exists( $key, $payload ) ) {
 			continue;
 		}
 
@@ -789,29 +720,9 @@ function mcp_formidable_update_field_internal( int $field_id, array $payload ): 
 		);
 	}
 
-	if ( class_exists( 'FrmField' ) && method_exists( 'FrmField', 'update' ) ) {
-		$result = FrmField::update( $field_id, $update );
-		if ( false === $result ) {
-			return array(
-				'success' => false,
-				'message' => 'Field update failed through Formidable field API.',
-			);
-		}
-	} else {
-		foreach ( array( 'options', 'field_options' ) as $serialized_key ) {
-			if ( isset( $update[ $serialized_key ] ) && is_array( $update[ $serialized_key ] ) ) {
-				$update[ $serialized_key ] = maybe_serialize( $update[ $serialized_key ] );
-			}
-		}
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- MCP field update ability fallback for Formidable versions without FrmField::update().
-		$result = $wpdb->update( $table, $update, array( 'id' => $field_id ) );
-		if ( false === $result ) {
-			return array(
-				'success' => false,
-				'message' => 'Field update failed: ' . $wpdb->last_error,
-			);
-		}
+	$result = FrmField::update( $field_id, mcp_formidable_prepare_native_field_input( $update ) );
+	if ( false === $result ) {
+		return array( 'success' => false, 'message' => 'Field update failed through Formidable field API.' );
 	}
 
 	mcp_formidable_clear_field_runtime_cache( $field_id, $form_id );
@@ -832,14 +743,13 @@ function mcp_formidable_update_field_internal( int $field_id, array $payload ): 
 }
 
 /**
- * Update basic Formidable form properties directly.
+ * Update basic Formidable form properties through the native model.
  *
  * @param int                 $form_id Form ID.
  * @param array<string,mixed> $payload Update payload.
  * @return array<string,mixed>
  */
 function mcp_formidable_update_form_internal( int $form_id, array $payload ): array {
-	global $wpdb;
 
 	$form = mcp_formidable_get_form_row_by_id( $form_id );
 	if ( ! $form ) {
@@ -849,24 +759,26 @@ function mcp_formidable_update_form_internal( int $form_id, array $payload ): ar
 		);
 	}
 
-	$table   = mcp_formidable_table_name( 'frm_forms' );
-	$columns = mcp_formidable_table_columns( $table );
+	if ( ! is_callable( array( 'FrmForm', 'update' ) ) ) {
+		return array( 'success' => false, 'message' => 'Formidable form update API is unavailable.' );
+	}
 	$update  = array();
 
-	if ( array_key_exists( 'name', $payload ) && in_array( 'name', $columns, true ) ) {
+	if ( array_key_exists( 'name', $payload ) ) {
 		$update['name'] = sanitize_text_field( (string) $payload['name'] );
 	}
-	if ( array_key_exists( 'description', $payload ) && in_array( 'description', $columns, true ) ) {
+	if ( array_key_exists( 'description', $payload ) ) {
 		$update['description'] = wp_kses_post( (string) $payload['description'] );
 	}
-	if ( array_key_exists( 'form_key', $payload ) && in_array( 'form_key', $columns, true ) ) {
+	if ( array_key_exists( 'form_key', $payload ) ) {
 		$update['form_key'] = sanitize_key( (string) $payload['form_key'] );
 	}
-	if ( array_key_exists( 'options', $payload ) && is_array( $payload['options'] ) && in_array( 'options', $columns, true ) ) {
+	if ( array_key_exists( 'options', $payload ) && is_array( $payload['options'] ) ) {
 		$options = mcp_formidable_normalize_field_payload( $form->options ?? array() );
 		$options = array_replace_recursive( $options, mcp_formidable_sanitize_form_option_value( $payload['options'] ) );
 
-		$update['options'] = maybe_serialize( $options );
+		$update['options'] = $options;
+		$update['status']  = (string) ( $form->status ?? 'published' );
 	}
 
 	if ( empty( $update ) ) {
@@ -876,12 +788,11 @@ function mcp_formidable_update_form_internal( int $form_id, array $payload ): ar
 		);
 	}
 
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- MCP form update ability.
-	$result = $wpdb->update( $table, $update, array( 'id' => $form_id ) );
+	$result = FrmForm::update( $form_id, wp_slash( $update ) );
 	if ( false === $result ) {
 		return array(
 			'success' => false,
-			'message' => 'Form update failed: ' . $wpdb->last_error,
+			'message' => 'Form update failed through Formidable form API.',
 		);
 	}
 
@@ -889,9 +800,13 @@ function mcp_formidable_update_form_internal( int $form_id, array $payload ): ar
 
 	$updated = mcp_formidable_get_form_row_by_id( $form_id );
 
+	if ( ! $updated ) {
+		return array( 'success' => false, 'message' => 'Updated form could not be reloaded.' );
+	}
+
 	return array(
 		'success' => true,
-		'form'    => $updated ? mcp_formidable_normalize_form( $updated ) : null,
+		'form'    => mcp_formidable_normalize_form( $updated ),
 	);
 }
 
@@ -984,81 +899,6 @@ function mcp_formidable_update_action_post_internal( int $action_id, array $payl
 }
 
 /**
- * Return table columns for a Formidable table.
- *
- * @param string $table Table name.
- * @return array<int,string>
- */
-function mcp_formidable_table_columns( string $table ): array {
-	global $wpdb;
-
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema inspection for MCP write ability.
-	$columns = $wpdb->get_col( $wpdb->prepare( 'DESCRIBE %i', $table ), 0 );
-	return is_array( $columns ) ? array_map( 'strval', $columns ) : array();
-}
-
-/**
- * Return a unique key in a database table.
- */
-function mcp_formidable_unique_db_key( string $table, string $column, string $base, int $max_length = 100 ): string {
-	global $wpdb;
-
-	$base = sanitize_key( $base );
-	if ( '' === $base ) {
-		$base = 'formidable-copy';
-	}
-
-	$base = substr( $base, 0, $max_length );
-	$key  = $base;
-	$i    = 2;
-
-	while ( true ) {
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Uniqueness check for create ability.
-		$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE %i = %s', $table, $column, $key ) );
-		if ( 0 === (int) $exists ) {
-			return $key;
-		}
-
-		$suffix = '-' . $i;
-		$key    = substr( $base, 0, max( 1, $max_length - strlen( $suffix ) ) ) . $suffix;
-		$i++;
-	}
-}
-
-/**
- * Recursively replace exact scalar references in Formidable option arrays.
- *
- * @param mixed               $value Option value.
- * @param array<string,mixed> $map   Exact scalar replacement map.
- * @return mixed
- */
-function mcp_formidable_replace_option_refs( $value, array $map ) {
-	if ( is_array( $value ) ) {
-		foreach ( $value as $key => $item ) {
-			$value[ $key ] = mcp_formidable_replace_option_refs( $item, $map );
-		}
-		return $value;
-	}
-
-	if ( is_object( $value ) ) {
-		foreach ( get_object_vars( $value ) as $key => $item ) {
-			$value->{$key} = mcp_formidable_replace_option_refs( $item, $map );
-		}
-		return $value;
-	}
-
-	if ( is_scalar( $value ) ) {
-		$string_value = (string) $value;
-		if ( array_key_exists( $string_value, $map ) ) {
-			$replacement = $map[ $string_value ];
-			return is_int( $value ) ? (int) $replacement : (string) $replacement;
-		}
-	}
-
-	return $value;
-}
-
-/**
  * Clone a Formidable form, fields, and form actions.
  *
  * @param int    $source_form_id Source form ID.
@@ -1067,156 +907,70 @@ function mcp_formidable_replace_option_refs( $value, array $map ) {
  * @return array<string,mixed>
  */
 function mcp_formidable_clone_form_internal( int $source_form_id, string $name, string $form_key ): array {
-	global $wpdb;
+	global $frm_duplicate_ids;
 
-	$source = mcp_formidable_get_form_row_by_id( $source_form_id );
-	if ( ! $source ) {
-		return array(
-			'success' => false,
-			'message' => 'Source form not found.',
-		);
+	$name     = sanitize_text_field( $name );
+	$form_key = sanitize_key( $form_key );
+	if ( '' === $name || '' === $form_key ) {
+		return array( 'success' => false, 'message' => 'Provide a nonempty name and form_key.' );
 	}
-
-	$forms_table = mcp_formidable_table_name( 'frm_forms' );
-	$form_cols   = mcp_formidable_table_columns( $forms_table );
-	$form_key    = mcp_formidable_unique_db_key( $forms_table, 'form_key', '' !== $form_key ? $form_key : ( (string) $source->form_key . '-en' ), 100 );
-
-	$form_data = array();
-	foreach ( $form_cols as $column ) {
-		if ( 'id' === $column || ! property_exists( $source, $column ) ) {
-			continue;
+	foreach ( array( array( 'FrmForm', 'duplicate' ), array( 'FrmForm', 'update' ), array( 'FrmForm', 'destroy' ), array( 'FrmField', 'get_all_for_form' ), array( 'FrmField', 'getOne' ), array( 'FrmFormAction', 'get_action_for_form' ) ) as $method ) {
+		if ( ! is_callable( $method ) ) {
+			return array( 'success' => false, 'message' => 'Formidable native form duplication API is unavailable.' );
 		}
-		$form_data[ $column ] = $source->{$column};
 	}
-	$form_data['name']     = '' !== $name ? sanitize_text_field( $name ) : sanitize_text_field( (string) $source->name . ' EN' );
-	$form_data['form_key'] = $form_key;
-	if ( in_array( 'created_at', $form_cols, true ) ) {
-		$form_data['created_at'] = current_time( 'mysql' );
-	}
-	if ( in_array( 'is_template', $form_cols, true ) ) {
-		$form_data['is_template'] = 0;
-	}
-	if ( in_array( 'parent_form_id', $form_cols, true ) ) {
-		$form_data['parent_form_id'] = 0;
+	if ( ! mcp_formidable_get_form_row_by_id( $source_form_id ) ) {
+		return array( 'success' => false, 'message' => 'Source form not found.' );
 	}
 
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Controlled MCP clone operation.
-	$inserted = $wpdb->insert( $forms_table, $form_data );
-	if ( false === $inserted ) {
-		return array(
-			'success' => false,
-			'message' => 'Could not create cloned form: ' . $wpdb->last_error,
-		);
+	$fields       = mcp_formidable_get_field_rows_for_form( $source_form_id );
+	$previous_ids = $frm_duplicate_ids;
+	$frm_duplicate_ids = array();
+	try {
+		// Formidable owns repeating forms, reference remapping, and action hooks.
+		$new_form_id = (int) FrmForm::duplicate( $source_form_id );
+		$duplicate_ids = $frm_duplicate_ids;
+	} finally {
+		$frm_duplicate_ids = $previous_ids;
+	}
+	if ( $new_form_id <= 0 ) {
+		return array( 'success' => false, 'message' => 'Formidable could not duplicate the form.' );
 	}
 
-	$new_form_id = (int) $wpdb->insert_id;
-	$field_map   = array();
-	$key_map     = array();
-	$new_fields  = array();
-	$fields      = mcp_formidable_get_field_rows_for_form( $source_form_id );
-	$fields_table= mcp_formidable_table_name( 'frm_fields' );
-	$field_cols  = mcp_formidable_table_columns( $fields_table );
-
+	$updated = mcp_formidable_update_form_internal( $new_form_id, array( 'name' => $name, 'form_key' => $form_key ) );
+	$field_map = array();
+	$key_map   = array();
 	foreach ( $fields as $field ) {
-		$field_data = array();
-		foreach ( $field_cols as $column ) {
-			if ( 'id' === $column || ! property_exists( $field, $column ) ) {
-				continue;
-			}
-			$field_data[ $column ] = $field->{$column};
+		$new_field_id = (int) ( $duplicate_ids[ $field->id ] ?? 0 );
+		$new_field = mcp_formidable_get_field_row_by_id( $new_field_id );
+		if ( ! $new_field ) {
+			$updated = array( 'success' => false, 'message' => 'A duplicated field could not be reloaded.' );
+			break;
 		}
-		$field_data['form_id'] = $new_form_id;
-		if ( in_array( 'field_key', $field_cols, true ) ) {
-			$field_data['field_key'] = mcp_formidable_unique_db_key( $fields_table, 'field_key', (string) $field->field_key . '-en', 100 );
-		}
-		if ( in_array( 'created_at', $field_cols, true ) ) {
-			$field_data['created_at'] = current_time( 'mysql' );
-		}
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Controlled MCP clone operation.
-		$ok = $wpdb->insert( $fields_table, $field_data );
-		if ( false === $ok ) {
-			return array(
-				'success' => false,
-				'message' => 'Could not clone field ' . (int) $field->id . ': ' . $wpdb->last_error,
-				'new_form_id' => $new_form_id,
-			);
-		}
-
-		$new_field_id = (int) $wpdb->insert_id;
-		$field_map[ (string) (int) $field->id ] = $new_field_id;
-		if ( isset( $field->field_key ) ) {
-			$key_map[ (string) $field->field_key ] = (string) $field_data['field_key'];
-		}
-		$new_fields[] = $new_field_id;
+		$field_map[ (int) $field->id ] = $new_field_id;
+		$key_map[ (string) $field->field_key ] = (string) $new_field->field_key;
 	}
-
-	$ref_map = $field_map + $key_map;
-	foreach ( $new_fields as $new_field_id ) {
-		$field = mcp_formidable_get_field_row_by_id( $new_field_id );
-		if ( ! $field ) {
-			continue;
-		}
-		$options = mcp_formidable_replace_option_refs( mcp_formidable_normalize_field_payload( $field->options ?? array() ), $ref_map );
-		$field_options = mcp_formidable_replace_option_refs( mcp_formidable_normalize_field_payload( $field->field_options ?? array() ), $ref_map );
-		mcp_formidable_update_field_internal(
-			$new_field_id,
-			array(
-				'options'       => $options,
-				'field_options' => $field_options,
-			)
+	if ( ! $updated['success'] ) {
+		$removed = FrmForm::destroy( $new_form_id );
+		return array(
+			'success' => false,
+			'message' => $updated['message'],
+			'new_form_id' => $new_form_id,
+			'cleanup_complete' => false !== $removed && ! mcp_formidable_get_form_row_by_id( $new_form_id ),
 		);
 	}
 
-	$actions_table = mcp_formidable_table_name( 'frm_form_actions' );
-	$actions_copied = 0;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Controlled MCP clone operation.
-		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $actions_table ) ) === $actions_table ) {
-			$action_cols = mcp_formidable_table_columns( $actions_table );
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Controlled MCP clone operation.
-			$actions = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE form_id = %d', $actions_table, $source_form_id ) );
-		if ( is_array( $actions ) ) {
-			foreach ( $actions as $action ) {
-				$action_data = array();
-				foreach ( $action_cols as $column ) {
-					if ( 'id' === $column || ! property_exists( $action, $column ) ) {
-						continue;
-					}
-					$action_data[ $column ] = $action->{$column};
-				}
-				$action_data['form_id'] = $new_form_id;
-				if ( in_array( 'action_key', $action_cols, true ) && isset( $action->action_key ) ) {
-					$action_data['action_key'] = mcp_formidable_unique_db_key( $actions_table, 'action_key', (string) $action->action_key . '-en', 100 );
-				}
-				if ( in_array( 'created_at', $action_cols, true ) ) {
-					$action_data['created_at'] = current_time( 'mysql' );
-				}
-				if ( in_array( 'updated_at', $action_cols, true ) ) {
-					$action_data['updated_at'] = current_time( 'mysql' );
-				}
-				if ( isset( $action_data['post_content'] ) ) {
-					$content = mcp_formidable_replace_option_refs( maybe_unserialize( $action_data['post_content'] ), $ref_map );
-					$action_data['post_content'] = maybe_serialize( $content );
-				}
-
-				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Controlled MCP clone operation.
-				if ( false !== $wpdb->insert( $actions_table, $action_data ) ) {
-					$actions_copied++;
-				}
-			}
-		}
-	}
-
+	$actions = FrmFormAction::get_action_for_form( $new_form_id, 'all', array( 'post_status' => 'any', 'limit' => 999 ) );
 	$new_form = mcp_formidable_get_form_row_by_id( $new_form_id );
 	return array(
 		'success'        => true,
 		'source_form_id' => $source_form_id,
 		'new_form_id'    => $new_form_id,
-		'form'           => $new_form ? mcp_formidable_normalize_form_detail( $new_form ) : array(),
+		'form'           => mcp_formidable_normalize_form_detail( $new_form ),
 		'field_map'      => $field_map,
 		'field_key_map'  => $key_map,
-		'fields_copied'  => count( $new_fields ),
-		'actions_copied' => $actions_copied,
+		'fields_copied'  => count( $field_map ),
+		'actions_copied' => is_array( $actions ) ? count( $actions ) : 0,
 		'shortcode'      => '[formidable id="' . $new_form_id . '"]',
 	);
 }
@@ -1537,8 +1291,10 @@ function mcp_register_formidable_abilities(): void {
 					);
 				}
 
-				mcp_formidable_update_option_settings( 'frm_options', $changes );
-				mcp_formidable_update_option_settings( 'frmpro_options', $changes );
+				$result = mcp_formidable_store_settings( $changes );
+				if ( ! $result['success'] ) {
+					return $result;
+				}
 				mcp_formidable_clear_runtime_transients();
 
 				$rebuilt = false;
@@ -1801,7 +1557,6 @@ function mcp_register_formidable_abilities(): void {
 			),
 		)
 	);
-
 
 	wp_register_ability(
 		'formidable/get-form',
@@ -2265,13 +2020,20 @@ function mcp_register_formidable_abilities(): void {
 					);
 				}
 
-				$updated = array();
-				foreach ( (array) ( $input['meta'] ?? array() ) as $key => $value ) {
-					$key = (string) $key;
-					if ( '' === $key || ! current_user_can( 'edit_post_meta', $post_id, $key ) ) {
-						continue;
+				$meta = (array) ( $input['meta'] ?? array() );
+				foreach ( $meta as $key => $value ) {
+					if ( '' === (string) $key || ! current_user_can( 'edit_post_meta', $post_id, (string) $key ) ) {
+						return array( 'success' => false, 'updated' => array(), 'message' => 'Current user cannot edit every requested metadata key.' );
 					}
-					update_post_meta( $post_id, $key, is_scalar( $value ) ? (string) $value : $value );
+				}
+				$updated = array();
+				foreach ( $meta as $key => $value ) {
+					$key = (string) $key;
+					$value = is_scalar( $value ) ? (string) $value : $value;
+					$saved = update_post_meta( $post_id, $key, wp_slash( $value ) );
+					if ( false === $saved && get_post_meta( $post_id, $key, true ) !== $value ) {
+						return array( 'success' => false, 'updated' => $updated, 'message' => 'Metadata could not be saved for key: ' . $key );
+					}
 					$updated[] = $key;
 				}
 				clean_post_cache( $post_id );
