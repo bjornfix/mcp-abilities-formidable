@@ -4,7 +4,7 @@ Tags: forms, formidable, mcp, api, automation
 Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.10
+Stable tag: 1.2.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -56,12 +56,17 @@ The add-on has no general undo or separate confirmation step. A successful store
 
 == Installation ==
 
+For update notifications in WordPress, install [Devenia MCP Updater](https://downloads.devenia.com/devenia-mcp-updater.zip). The updater is optional. You choose which plugins update automatically through WordPress.
+
 1. Activate Formidable and configure the required MCP stack.
 2. Download and upload the ZIP through Plugins > Add New > Upload Plugin.
 3. Activate the add-on and confirm ability discovery.
 4. List forms, inspect the selected ID, and then request the intended change.
 
 == Changelog ==
+
+= 1.2.11 =
+* Add one dismissible Plugins-screen reminder when Devenia MCP Updater is missing or inactive, with persistent install or activate links. Automatic updates remain your choice in WordPress.
 
 = 1.2.10 =
 * Use native models for form and field reads, updates and duplication.

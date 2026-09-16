@@ -2,12 +2,12 @@
 
 Inspect a Formidable form before you change it. Find its fields and known page references, copy it with Formidable's own duplication process, or adjust one field through an authenticated MCP connection.
 
-[![Release 1.2.10](https://img.shields.io/badge/release-1.2.10-blue.svg)](https://downloads.devenia.com/mcp-abilities-formidable.zip)
+[![Release 1.2.11](https://img.shields.io/badge/release-1.2.11-blue.svg)](https://downloads.devenia.com/mcp-abilities-formidable.zip)
 [![License GPLv2 or later](https://img.shields.io/badge/license-GPLv2%2B-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
 [![WordPress 6.9+](https://img.shields.io/badge/WordPress-6.9%2B-blue.svg)](https://wordpress.org/download/)
 [![PHP 8.0+](https://img.shields.io/badge/PHP-8.0%2B-purple.svg)](https://www.php.net/downloads.php)
 
-**Stable tag:** 1.2.10 · **Tested up to:** 7.1 (7.1-RC3) · **License:** GPLv2 or later
+**Stable tag:** 1.2.11 · **Tested up to:** 7.1 (7.1-RC3) · **License:** GPLv2 or later
 
 **Tags:** forms, formidable, mcp, api, automation
 
@@ -124,12 +124,20 @@ Writes take effect when called. The add-on has no separate confirmation step or 
 
 ## Installation
 
+
+For update notifications in WordPress, install [Devenia MCP Updater](https://downloads.devenia.com/devenia-mcp-updater.zip). The updater is optional. You choose which plugins update automatically through WordPress.
+
 1. Activate Formidable and configure the required MCP stack.
 2. [Download the plugin ZIP](https://downloads.devenia.com/mcp-abilities-formidable.zip).
 3. Upload it through **Plugins → Add New → Upload Plugin** and activate it.
 4. Confirm discovery and read a form before changing one.
 
 ## Recent Changes
+
+
+### 1.2.11
+
+Add one dismissible Plugins-screen reminder when Devenia MCP Updater is missing or inactive, with persistent install or activate links. Automatic updates remain your choice in WordPress.
 
 ### 1.2.10
 
