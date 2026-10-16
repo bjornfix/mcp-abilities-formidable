@@ -4,7 +4,7 @@ Tags: forms, formidable, mcp, api, automation
 Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.11
+Stable tag: 1.2.12
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,7 +12,7 @@ Inspect Formidable forms, copy them with native field and action handling, and u
 
 == Description ==
 
-Fifteen abilities connect Formidable forms, fields, styles, settings and supported usage locations to the WordPress Abilities API. Inspect a form before changing it and read back its resulting IDs, keys and options.
+Sixteen abilities connect Formidable forms, fields, styles, settings and supported usage locations to the WordPress Abilities API. Inspect a form before changing it and read back its resulting IDs, keys and options.
 
 Tested with WordPress 7.1-RC3.
 
@@ -32,7 +32,8 @@ Premium fields and actions retain their Formidable edition or add-on requirement
 * formidable/update-settings: Supported native style/runtime settings and optional CSS rebuild.
 * formidable/list-forms: Form IDs, keys, style references and shortcodes.
 * formidable/get-form: One form with options and optional fields.
-* formidable/clone-form: Native form, field and action duplication; new IDs and key mappings.
+* formidable/clone-form: Native form, field and verified action duplication; new IDs and key mappings.
+* formidable/copy-form-actions: Complete actions on an empty, unedited copy using its exact field map.
 * formidable/update-form: Name, description, key and merged form options.
 * formidable/list-fields: Normalized fields belonging to a form.
 * formidable/get-field: One normalized field by ID.
@@ -48,7 +49,7 @@ Premium fields and actions retain their Formidable edition or add-on requirement
 
 Reading forms, fields, styles and usage requires edit_posts. Global settings and CSS cache operations require manage_options. Form, field and action writes require frm_edit_forms or manage_options. Post metadata writes also check the exact post and all requested keys before writing; they are not restricted to form-linked posts.
 
-Formidable owns duplication, field references and registered action hooks. Copies do not include submitted entries or translated labels. Use the returned form key because Formidable ensures uniqueness. Option updates preserve the form's publication status. File upload size aliases use MB.
+Formidable owns duplication, field references and native action handlers. Action counts are checked against the source, with cleanup of an incomplete new copy. Completing an existing copy requires no entries or actions, matching form options and unedited fields, and an exact field map. Copies do not include submitted entries or translated labels. Use the returned form key because Formidable ensures uniqueness. Option updates preserve the form's publication status. File upload size aliases use MB.
 
 Global settings use the native settings object. Legacy properties are rejected when unavailable. Usage search covers supported post content, Elementor data and Formidable widgets within the supplied limits; it is not an exhaustive dependency map. CSS regeneration depends on the installed style classes.
 
@@ -64,6 +65,10 @@ For update notifications in WordPress, install [Devenia MCP Updater](https://dow
 4. List forms, inspect the selected ID, and then request the intended change.
 
 == Changelog ==
+
+= 1.2.12 =
+* Copy notification and submit actions through native handlers outside the form builder, verify their count, and remove incomplete new copies.
+* Add guarded completion of actions on an existing empty, unedited form copy.
 
 = 1.2.11 =
 * Add one dismissible Plugins-screen reminder when Devenia MCP Updater is missing or inactive, with persistent install or activate links. Automatic updates remain your choice in WordPress.

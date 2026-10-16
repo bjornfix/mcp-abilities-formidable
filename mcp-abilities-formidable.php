@@ -3,7 +3,7 @@
  * Plugin Name: MCP Abilities - Formidable
  * Plugin URI: https://devenia.com/plugins/mcp-abilities-formidable/
  * Description: Formidable Forms abilities for MCP. Inspect forms, styles, settings, usage, and CSS cache/runtime behavior.
- * Version: 1.2.11
+ * Version: 1.2.12
  * Author: basicus
  * Author URI: https://profiles.wordpress.org/basicus/
  * License: GPL-2.0+
@@ -903,6 +903,110 @@ function mcp_formidable_update_action_post_internal( int $action_id, array $payl
 	);
 }
 
+/** Copy actions with native handlers while the field mapping is installed. */
+function mcp_formidable_duplicate_actions_native( int $source_form_id, int $target_form_id ): array {
+	$args = array( 'post_status' => 'any', 'limit' => 999 );
+	$source = FrmFormAction::get_action_for_form( $source_form_id, 'all', $args );
+	$target = FrmFormAction::get_action_for_form( $target_form_id, 'all', $args );
+	$expected = is_array( $source ) ? count( $source ) : 0;
+	$actual = is_array( $target ) ? count( $target ) : 0;
+	if ( $actual === $expected ) {
+		return array( 'success' => true, 'actions_copied' => $actual );
+	}
+	if ( 0 !== $actual ) {
+		return array( 'success' => false, 'message' => 'The copied form has an incomplete action set.' );
+	}
+	$handlers = FrmFormActionsController::get_form_actions( 'all' );
+	if ( ! is_array( $handlers ) ) {
+		return array( 'success' => false, 'message' => 'Native Formidable action handlers are unavailable.' );
+	}
+	foreach ( $handlers as $handler ) {
+		if ( ! is_callable( array( $handler, 'duplicate_form_actions' ) ) ) {
+			return array( 'success' => false, 'message' => 'A native Formidable action copy API is unavailable.' );
+		}
+	}
+	foreach ( $handlers as $handler ) {
+		$handler->duplicate_form_actions( $target_form_id, $source_form_id );
+	}
+	$target = FrmFormAction::get_action_for_form( $target_form_id, 'all', $args );
+	$actual = is_array( $target ) ? count( $target ) : 0;
+	return $actual === $expected
+		? array( 'success' => true, 'actions_copied' => $actual )
+		: array( 'success' => false, 'message' => 'Formidable did not copy every source action.' );
+}
+
+/** Complete an unused, unedited form copy without replacing any actions. */
+function mcp_formidable_copy_form_actions_internal( int $source_form_id, int $target_form_id, array $field_map ): array {
+	global $frm_duplicate_ids;
+	foreach ( array( array( 'FrmFormAction', 'get_action_for_form' ), array( 'FrmFormActionsController', 'get_form_actions' ), array( 'FrmDb', 'get_count' ) ) as $method ) {
+		if ( ! is_callable( $method ) ) {
+			return array( 'success' => false, 'message' => 'A required native Formidable API is unavailable.' );
+		}
+	}
+	$source = mcp_formidable_get_form_row_by_id( $source_form_id );
+	$target = mcp_formidable_get_form_row_by_id( $target_form_id );
+	if ( ! $source || ! $target || $source_form_id === $target_form_id ) {
+		return array( 'success' => false, 'message' => 'Select two different existing forms.' );
+	}
+	// Count every entry, including drafts and spam; do not read submitted values.
+	$count = FrmDb::get_count( 'frm_items', array( 'form_id' => $target_form_id ) );
+	if ( ! is_numeric( $count ) || 0 !== (int) $count ) {
+		return array( 'success' => false, 'message' => 'The target form must have no entries.' );
+	}
+	$args = array( 'post_status' => 'any', 'limit' => 999 );
+	$existing = FrmFormAction::get_action_for_form( $target_form_id, 'all', $args );
+	if ( ! is_array( $existing ) || $existing ) {
+		return array( 'success' => false, 'message' => 'The target form must have no actions.' );
+	}
+	$source_detail = mcp_formidable_normalize_form_detail( $source );
+	$target_detail = mcp_formidable_normalize_form_detail( $target );
+	if ( $source_detail['options'] !== $target_detail['options'] ) {
+		return array( 'success' => false, 'message' => 'The target must retain the unedited copied form options.' );
+	}
+	$source_fields = mcp_formidable_get_field_rows_for_form( $source_form_id );
+	$target_fields = mcp_formidable_get_field_rows_for_form( $target_form_id );
+	if ( count( $field_map ) !== count( $source_fields ) || count( $target_fields ) !== count( $source_fields ) || count( array_unique( array_values( $field_map ) ) ) !== count( $field_map ) ) {
+		return array( 'success' => false, 'message' => 'Provide a complete one-to-one field map for the copied form.' );
+	}
+	$mapping = array();
+	foreach ( $source_fields as $field ) {
+		$target_id = isset( $field_map[ $field->id ] ) ? (int) $field_map[ $field->id ] : 0;
+		$copy = mcp_formidable_get_field_row_by_id( $target_id );
+		if ( ! $copy || (int) $copy->form_id !== $target_form_id ) {
+			return array( 'success' => false, 'message' => 'A mapped field does not belong to the target form.' );
+		}
+		$original_values = mcp_formidable_normalize_field( $field );
+		$copied_values = mcp_formidable_normalize_field( $copy );
+		foreach ( array( 'id', 'form_id', 'field_key' ) as $identity ) {
+			unset( $original_values[ $identity ], $copied_values[ $identity ] );
+		}
+		if ( $original_values !== $copied_values ) {
+			return array( 'success' => false, 'message' => 'The target fields must be an unedited copy of the source fields.' );
+		}
+		$mapping[ (int) $field->id ] = $target_id;
+		$mapping[ (string) $field->field_key ] = $target_id;
+	}
+	$previous_ids = $frm_duplicate_ids;
+	$frm_duplicate_ids = $mapping;
+	try {
+		$result = mcp_formidable_duplicate_actions_native( $source_form_id, $target_form_id );
+	} catch ( Throwable $error ) {
+		$result = array( 'success' => false, 'message' => 'The native Formidable action copy failed.' );
+	} finally {
+		$frm_duplicate_ids = $previous_ids;
+	}
+	if ( empty( $result['success'] ) ) {
+		$created = FrmFormAction::get_action_for_form( $target_form_id, 'all', $args );
+		foreach ( is_array( $created ) ? $created : array() as $action ) {
+			wp_delete_post( (int) $action->ID, true );
+		}
+		FrmFormAction::clear_cache();
+		$remaining = FrmFormAction::get_action_for_form( $target_form_id, 'all', $args );
+		$result['cleanup_complete'] = is_array( $remaining ) && ! $remaining;
+	}
+	return array_merge( $result, array( 'source_form_id' => $source_form_id, 'target_form_id' => $target_form_id ) );
+}
+
 /**
  * Clone a Formidable form, fields, and form actions.
  *
@@ -919,7 +1023,7 @@ function mcp_formidable_clone_form_internal( int $source_form_id, string $name, 
 	if ( '' === $name || '' === $form_key ) {
 		return array( 'success' => false, 'message' => 'Provide a nonempty name and form_key.' );
 	}
-	foreach ( array( array( 'FrmForm', 'duplicate' ), array( 'FrmForm', 'update' ), array( 'FrmForm', 'destroy' ), array( 'FrmField', 'get_all_for_form' ), array( 'FrmField', 'getOne' ), array( 'FrmFormAction', 'get_action_for_form' ) ) as $method ) {
+	foreach ( array( array( 'FrmForm', 'duplicate' ), array( 'FrmForm', 'update' ), array( 'FrmForm', 'destroy' ), array( 'FrmField', 'get_all_for_form' ), array( 'FrmField', 'getOne' ), array( 'FrmFormAction', 'get_action_for_form' ), array( 'FrmFormActionsController', 'get_form_actions' ) ) as $method ) {
 		if ( ! is_callable( $method ) ) {
 			return array( 'success' => false, 'message' => 'Formidable native form duplication API is unavailable.' );
 		}
@@ -931,10 +1035,15 @@ function mcp_formidable_clone_form_internal( int $source_form_id, string $name, 
 	$fields       = mcp_formidable_get_field_rows_for_form( $source_form_id );
 	$previous_ids = $frm_duplicate_ids;
 	$frm_duplicate_ids = array();
+	$new_form_id = 0;
+	$duplicate_ids = array();
 	try {
 		// Formidable owns repeating forms, reference remapping, and action hooks.
 		$new_form_id = (int) FrmForm::duplicate( $source_form_id );
 		$duplicate_ids = $frm_duplicate_ids;
+		$action_copy = $new_form_id > 0 ? mcp_formidable_duplicate_actions_native( $source_form_id, $new_form_id ) : array( 'success' => false );
+	} catch ( Throwable $error ) {
+		$action_copy = array( 'success' => false, 'message' => 'The native Formidable form copy failed.' );
 	} finally {
 		$frm_duplicate_ids = $previous_ids;
 	}
@@ -942,7 +1051,9 @@ function mcp_formidable_clone_form_internal( int $source_form_id, string $name, 
 		return array( 'success' => false, 'message' => 'Formidable could not duplicate the form.' );
 	}
 
-	$updated = mcp_formidable_update_form_internal( $new_form_id, array( 'name' => $name, 'form_key' => $form_key ) );
+	$updated = ! empty( $action_copy['success'] )
+		? mcp_formidable_update_form_internal( $new_form_id, array( 'name' => $name, 'form_key' => $form_key ) )
+		: $action_copy;
 	$field_map = array();
 	$key_map   = array();
 	foreach ( $fields as $field ) {
@@ -1485,6 +1596,49 @@ function mcp_register_formidable_abilities(): void {
 					'idempotent'  => false,
 				),
 			),
+		)
+	);
+
+	wp_register_ability(
+		'formidable/copy-form-actions',
+		array(
+			'label' => 'Complete Formidable Copy Actions',
+			'description' => 'Copy native actions to an empty, unedited form copy using its exact field map. Refuses targets with entries or existing actions.',
+			'category' => 'site',
+			'input_schema' => array(
+				'type' => 'object',
+				'required' => array( 'source_form_id', 'target_form_id', 'field_map' ),
+				'properties' => array(
+					'source_form_id' => array( 'type' => 'integer', 'minimum' => 1 ),
+					'target_form_id' => array( 'type' => 'integer', 'minimum' => 1 ),
+					'field_map' => array( 'type' => 'object', 'additionalProperties' => array( 'type' => 'integer', 'minimum' => 1 ) ),
+				),
+				'additionalProperties' => false,
+			),
+			'output_schema' => array(
+				'type' => 'object',
+				'properties' => array(
+					'success' => array( 'type' => 'boolean' ),
+					'source_form_id' => array( 'type' => 'integer' ),
+					'target_form_id' => array( 'type' => 'integer' ),
+					'actions_copied' => array( 'type' => 'integer' ),
+					'cleanup_complete' => array( 'type' => 'boolean' ),
+					'message' => array( 'type' => 'string' ),
+				),
+			),
+			'execute_callback' => function ( array $input = array() ): array {
+				$inactive = mcp_formidable_require_active();
+				if ( $inactive ) {
+					return $inactive;
+				}
+				return mcp_formidable_copy_form_actions_internal(
+					isset( $input['source_form_id'] ) ? (int) $input['source_form_id'] : 0,
+					isset( $input['target_form_id'] ) ? (int) $input['target_form_id'] : 0,
+					isset( $input['field_map'] ) && is_array( $input['field_map'] ) ? $input['field_map'] : array()
+				);
+			},
+			'permission_callback' => function (): bool { return mcp_formidable_can_edit_forms(); },
+			'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => false, 'idempotent' => false ) ),
 		)
 	);
 

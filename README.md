@@ -2,18 +2,18 @@
 
 Inspect a Formidable form before you change it. Find its fields and known page references, copy it with Formidable's own duplication process, or adjust one field through an authenticated MCP connection.
 
-[![Release 1.2.11](https://img.shields.io/badge/release-1.2.11-blue.svg)](https://downloads.devenia.com/mcp-abilities-formidable.zip)
+[![Release 1.2.12](https://img.shields.io/badge/release-1.2.12-blue.svg)](https://downloads.devenia.com/mcp-abilities-formidable.zip)
 [![License GPLv2 or later](https://img.shields.io/badge/license-GPLv2%2B-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
 [![WordPress 6.9+](https://img.shields.io/badge/WordPress-6.9%2B-blue.svg)](https://wordpress.org/download/)
 [![PHP 8.0+](https://img.shields.io/badge/PHP-8.0%2B-purple.svg)](https://www.php.net/downloads.php)
 
-**Stable tag:** 1.2.11 · **Tested up to:** 7.1 (7.1-RC3) · **License:** GPLv2 or later
+**Stable tag:** 1.2.12 · **Tested up to:** 7.1 (7.1-RC3) · **License:** GPLv2 or later
 
 **Tags:** forms, formidable, mcp, api, automation
 
 ## What It Does
 
-Fifteen WordPress abilities expose Formidable forms, fields, styles, settings and known usage locations. Write operations can copy a form, change its properties or options, create and update fields, edit a form action, save permitted post metadata, and clear generated CSS caches.
+Sixteen WordPress abilities expose Formidable forms, fields, styles, settings and known usage locations. Write operations can copy a form, change its properties or options, create and update fields, edit a form action, save permitted post metadata, and clear generated CSS caches.
 
 Formidable owns form storage, field validation, duplication hooks and action behaviour. This add-on connects those features to the WordPress Abilities API. It does not provide an entry inbox, submission export or a replacement form builder.
 
@@ -62,7 +62,7 @@ Read the [Formidable add-on page](https://devenia.com/plugins/mcp-abilities-form
 
 Configure the MCP stack and confirm discovery. Start with `formidable/list-forms`, then inspect one returned ID with `formidable/get-form` and `include_fields: true`. Select the exact object before requesting a write.
 
-## Abilities (15)
+## Abilities (16)
 
 | Ability | Result or change |
 |---|---|
@@ -70,7 +70,8 @@ Configure the MCP stack and confirm discovery. Start with `formidable/list-forms
 | `formidable/update-settings` | Supported native style/runtime settings and optional CSS rebuild |
 | `formidable/list-forms` | Form IDs, keys, style references and shortcodes |
 | `formidable/get-form` | One form with options and optional fields |
-| `formidable/clone-form` | Native form, field and action duplication; new IDs and key mappings |
+| `formidable/clone-form` | Native form, field and verified action duplication; new IDs and key mappings |
+| `formidable/copy-form-actions` | Complete native actions on an empty, unedited copy with an exact field map |
 | `formidable/update-form` | Name, description, key and merged form options |
 | `formidable/list-fields` | Normalized fields belonging to a form |
 | `formidable/get-field` | One normalized field by ID |
@@ -116,7 +117,7 @@ Post metadata updates require `edit_posts`, permission for the exact post, and p
 
 Formidable-backed calls return an inactive result when Formidable is absent. Missing native write APIs or unavailable setting properties return an error. Legacy `jquery_css`, `old_css` and `accordion_js` inputs are usable only when the installed settings object provides them. `load_style` supports `all`, `dynamic` and `none`; global custom CSS is a string.
 
-Copies use Formidable's registered duplication hooks, including available action handlers. The add-on does not copy submitted entries. Form keys may be adjusted by Formidable for uniqueness; use the returned key. Changing form options preserves the current publication status. Editing action settings can change future email or integration behaviour, so inspect the exact action first.
+Copies use Formidable's native action handlers even outside the form builder. Action counts are verified against the source; an incomplete new copy is removed. `formidable/copy-form-actions` can complete an existing copy only when it has no entries or actions and retains matching form options and unedited fields. Supply the exact field map returned during copying. The add-on does not copy submitted entries. Form keys may be adjusted by Formidable for uniqueness; use the returned key. Changing form options preserves the current publication status. Editing action settings can change future email or integration behaviour, so inspect the exact action first.
 
 Usage search checks post content, Elementor `_elementor_data` and `widget_frm_show_form`. Its result is not an exhaustive site dependency map. The configured search limits and unsupported embedding methods can leave references undiscovered. CSS rebuilding depends on the installed Formidable style classes; inspect the returned rebuild result.
 
@@ -134,6 +135,10 @@ For update notifications in WordPress, install [Devenia MCP Updater](https://dow
 
 ## Recent Changes
 
+
+### 1.2.12
+
+Copy notification and submit actions through native handlers outside the form builder, verify their count, and remove incomplete new copies. Add a guarded operation to complete actions on an existing empty, unedited form copy.
 
 ### 1.2.11
 
