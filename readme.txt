@@ -4,7 +4,7 @@ Tags: forms, formidable, mcp, api, automation
 Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.0
+Stable tag: 1.3.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,7 +12,7 @@ Inspect Formidable forms, copy them with native field and action handling, and u
 
 == Description ==
 
-Eighteen abilities connect Formidable forms, fields, styles, settings and supported usage locations to the WordPress Abilities API. Inspect a form before changing it and read back its resulting IDs, keys and options.
+Nineteen abilities connect Formidable forms, fields, styles, settings and supported usage locations to the WordPress Abilities API. Inspect a form before changing it and read back its resulting IDs, keys and options.
 
 Tested with WordPress 7.1-RC3.
 
@@ -44,6 +44,7 @@ Premium fields and actions retain their Formidable edition or add-on requirement
 * formidable/list-styles: Saved styles and an optional virtual default entry.
 * formidable/get-style: Stored and effective settings, supported native keys and a review hash for one existing style.
 * formidable/update-style: Merge selected native style settings, verify persistence and optionally regenerate CSS.
+* formidable/restore-style: Preview and restore selected native style metadata without replacing settings.
 * formidable/find-form-usage: Supported post-content, Elementor and widget references.
 * formidable/clear-css-cache: Clear runtime/style transients and optionally regenerate CSS.
 
@@ -69,6 +70,10 @@ For update notifications in WordPress, install [Devenia MCP Updater](https://dow
 4. List forms, inspect the selected ID, and then request the intended change.
 
 == Changelog ==
+
+= 1.3.1 =
+* Preserve the complete native post and literal backslashes when saving style settings.
+* Add reviewed metadata restoration with native administrator and object permissions, an exact current-object hash and preservation of settings and existing default selection.
 
 = 1.3.0 =
 * Read stored and effective native style settings and every supported setting key.

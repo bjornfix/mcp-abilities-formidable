@@ -2,18 +2,18 @@
 
 Inspect a Formidable form before you change it. Find its fields and known page references, copy it with Formidable's own duplication process, or adjust one field through an authenticated MCP connection.
 
-[![Release 1.3.0](https://img.shields.io/badge/release-1.3.0-blue.svg)](https://downloads.devenia.com/mcp-abilities-formidable.zip)
+[![Release 1.3.1](https://img.shields.io/badge/release-1.3.1-blue.svg)](https://downloads.devenia.com/mcp-abilities-formidable.zip)
 [![License GPLv2 or later](https://img.shields.io/badge/license-GPLv2%2B-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
 [![WordPress 6.9+](https://img.shields.io/badge/WordPress-6.9%2B-blue.svg)](https://wordpress.org/download/)
 [![PHP 8.0+](https://img.shields.io/badge/PHP-8.0%2B-purple.svg)](https://www.php.net/downloads.php)
 
-**Stable tag:** 1.3.0 · **Tested up to:** 7.1 (7.1-RC3) · **License:** GPLv2 or later
+**Stable tag:** 1.3.1 · **Tested up to:** 7.1 (7.1-RC3) · **License:** GPLv2 or later
 
 **Tags:** forms, formidable, mcp, api, automation
 
 ## What It Does
 
-Eighteen WordPress abilities expose Formidable forms, fields, styles, settings and known usage locations. Write operations can copy a form, change its properties or options, create and update fields, edit a form action, save permitted post metadata, and clear generated CSS caches.
+Nineteen WordPress abilities expose Formidable forms, fields, styles, settings and known usage locations. Write operations can copy a form, change its properties or options, create and update fields, edit a form action, save permitted post metadata, and clear generated CSS caches.
 
 Formidable owns form storage, field validation, duplication hooks and action behaviour. This add-on connects those features to the WordPress Abilities API. It does not provide an entry inbox, submission export or a replacement form builder.
 
@@ -62,7 +62,7 @@ Read the [Formidable add-on page](https://devenia.com/plugins/mcp-abilities-form
 
 Configure the MCP stack and confirm discovery. Start with `formidable/list-forms`, then inspect one returned ID with `formidable/get-form` and `include_fields: true`. Select the exact object before requesting a write.
 
-## Abilities (18)
+## Abilities (19)
 
 | Ability | Result or change |
 |---|---|
@@ -82,6 +82,7 @@ Configure the MCP stack and confirm discovery. Start with `formidable/list-forms
 | `formidable/list-styles` | Saved styles and an optional virtual default entry |
 | `formidable/get-style` | Stored and effective settings, native setting keys and a review hash for one existing style |
 | `formidable/update-style` | Merge selected native style settings, verify persistence and optionally regenerate CSS |
+| `formidable/restore-style` | Preview and restore reviewed style metadata while preserving existing native settings |
 | `formidable/find-form-usage` | Supported post-content, Elementor and widget references |
 | `formidable/clear-css-cache` | Clear runtime/style transients and optionally regenerate CSS |
 
@@ -135,6 +136,8 @@ Read `formidable/get-style` with `{"style_id":42}`. The response distinguishes s
 
 Only selected native settings change. The style title, slug, default selection, publication status and other stored settings are preserved. Native sanitization, font quotation, style CSS scoping and base-font conversion apply when relevant. Style access requires `frm_edit_forms` or `manage_options`. CSS generation uses Formidable and still needs a rendered check.
 
+Use `formidable/restore-style` to preview selected native metadata from a known style backup. It preserves settings and requires native administrator and selected-object editing permissions. Confirmation requires the returned current-object hash. A regular page or arbitrary post cannot be converted to a style. The only accepted non-style object is an empty draft containing a complete recognized native style settings object. Existing style slugs and another style’s default selection are protected.
+
 ## Installation
 
 
@@ -147,6 +150,10 @@ For update notifications in WordPress, install [Devenia MCP Updater](https://dow
 
 ## Recent Changes
 
+
+### 1.3.1
+
+Preserve the complete native WordPress post when saving style settings, including its type, title, author, dates and default selection. Preserve literal backslashes through native JSON storage. Add reviewed restoration of style metadata without replacing style settings.
 
 ### 1.3.0
 

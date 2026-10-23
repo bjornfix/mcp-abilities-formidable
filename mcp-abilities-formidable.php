@@ -3,7 +3,7 @@
  * Plugin Name: MCP Abilities - Formidable
  * Plugin URI: https://devenia.com/plugins/mcp-abilities-formidable/
  * Description: Formidable Forms abilities for MCP. Inspect forms, styles, settings, usage, and CSS cache/runtime behavior.
- * Version: 1.3.0
+ * Version: 1.3.1
  * Author: basicus
  * Author URI: https://profiles.wordpress.org/basicus/
  * License: GPL-2.0+
@@ -1186,7 +1186,11 @@ function mcp_formidable_update_style_internal( array $input ): array {
 		return $before + array( 'updated' => false, 'css_rebuild_requested' => false );
 	}
 	// save() accepts explicit values; update() reads $_POST and publishes the style.
-	$saved = $model->save( array( 'ID' => $style_id, 'post_content' => $settings ) );
+	// FrmDb::save_settings() ultimately uses wp_insert_post(), whose omitted fields
+	// take insert defaults even with an ID. Preserve the complete native post.
+	$post_values = wp_slash( (array) get_post( $style_id ) );
+	$post_values['post_content'] = wp_slash( $settings );
+	$saved = $model->save( $post_values );
 	if ( is_wp_error( $saved ) || (int) $saved !== $style_id ) {
 		return array( 'success' => false, 'message' => 'Native style storage failed. Read the style again to check its current state.' );
 	}
@@ -1238,10 +1242,110 @@ function mcp_formidable_style_ability_definition( bool $write ): array {
 	);
 }
 
+/**
+ * Preview or restore metadata of a selected native style, preserving its settings.
+ *
+ * A misclassified post is accepted only for the exact empty-draft/native-style
+ * shape produced by an incomplete FrmStyle::save call. Pages and arbitrary posts
+ * are excluded, and native administrator plus object-edit permission is required.
+ *
+ * @param array<string,mixed> $input Explicit style ID and reviewed metadata.
+ * @return array<string,mixed>
+ */
+function mcp_formidable_restore_style_internal( array $input ): array {
+	$id   = (int) $input['style_id'];
+	$post = get_post( $id );
+	if ( ! $post || ! in_array( $post->post_type, array( 'frm_styles', 'post' ), true ) || ! current_user_can( 'manage_options' ) || ! current_user_can( 'edit_post', $id ) || ! class_exists( 'FrmStyle' ) ) {
+		return array( 'success' => false, 'message' => 'Native administrator and selected-object editing permissions are required.' );
+	}
+	$model    = new FrmStyle( $id );
+	$settings = FrmAppHelper::maybe_json_decode( $post->post_content );
+	$recovery = 'post' === $post->post_type && 'draft' === $post->post_status && '' === $post->post_title
+		&& is_array( $settings ) && count( $settings ) >= 20
+		&& ! array_diff( array_keys( $settings ), array_keys( $model->get_defaults() ) )
+		&& isset( $settings['font'], $settings['field_font_size'], $settings['form_width'], $settings['theme_css'] );
+	if ( ! is_array( $settings ) || ( 'frm_styles' !== $post->post_type && ! $recovery ) ) {
+		return array( 'success' => false, 'message' => 'Select an existing native style or a recognized incomplete native style save.' );
+	}
+	$allowed = array( 'post_title', 'post_name', 'post_status', 'post_author', 'post_date', 'post_date_gmt', 'comment_status', 'ping_status', 'guid', 'menu_order' );
+	$metadata = $input['metadata'] ?? array();
+	if ( ! is_array( $metadata ) || ! $metadata || array_diff( array_keys( $metadata ), $allowed ) ) {
+		return array( 'success' => false, 'message' => 'Provide only supported native style metadata.' );
+	}
+	foreach ( $metadata as $key => $value ) {
+		if ( ! is_scalar( $value ) || strlen( (string) $value ) > 1000 ) {
+			return array( 'success' => false, 'message' => 'Provide bounded native style metadata values.' );
+		}
+		$metadata[ $key ] = in_array( $key, array( 'post_author', 'menu_order' ), true ) ? (int) $value : sanitize_text_field( (string) $value );
+	}
+	if ( isset( $metadata['post_status'] ) && ! in_array( $metadata['post_status'], array( 'draft', 'publish', 'private' ), true ) ) {
+		return array( 'success' => false, 'message' => 'Unsupported style publication status.' );
+	}
+	if ( isset( $metadata['menu_order'] ) && ! in_array( $metadata['menu_order'], array( 0, 1 ), true ) ) {
+		return array( 'success' => false, 'message' => 'Style default selection must be zero or one.' );
+	}
+	if ( isset( $metadata['post_name'] ) && $metadata['post_name'] !== $post->post_name ) {
+		return array( 'success' => false, 'message' => 'Preserve the existing style slug and native CSS scope.' );
+	}
+	if ( 'publish' === ( $metadata['post_status'] ?? $post->post_status ) && ! current_user_can( 'publish_posts' ) ) {
+		return array( 'success' => false, 'message' => 'Native publishing permission is required.' );
+	}
+	if ( isset( $metadata['post_author'] ) && $metadata['post_author'] !== (int) $post->post_author && ! current_user_can( 'edit_others_posts' ) ) {
+		return array( 'success' => false, 'message' => 'Native author editing permission is required.' );
+	}
+	if ( ! empty( $metadata['menu_order'] ) ) {
+		foreach ( get_posts( array( 'post_type' => 'frm_styles', 'post_status' => array( 'publish', 'draft', 'private' ), 'posts_per_page' => 200 ) ) as $other ) {
+			if ( (int) $other->ID !== $id && ! empty( $other->menu_order ) ) {
+				return array( 'success' => false, 'message' => 'Another native default style exists. Preserve its selection before restoring this style.' );
+			}
+		}
+	}
+	$hash = hash( 'sha256', (string) wp_json_encode( (array) $post ) );
+	if ( true !== ( $input['confirm'] ?? false ) ) {
+		return array( 'success' => true, 'applied' => false, 'current_post_hash' => $hash, 'current_post_type' => $post->post_type, 'proposed_metadata' => $metadata );
+	}
+	if ( ( $input['expected_post_hash'] ?? '' ) !== $hash ) {
+		return array( 'success' => false, 'message' => 'The selected style object changed after review.' );
+	}
+	$values = array_replace( (array) $post, $metadata, array( 'post_type' => 'frm_styles', 'post_content' => $settings ) );
+	$saved  = $model->save( wp_slash( $values ) );
+	if ( is_wp_error( $saved ) || (int) $saved !== $id ) {
+		return array( 'success' => false, 'message' => 'Native style restoration failed. Read the object before another write.' );
+	}
+	clean_post_cache( $id );
+	$after = get_post( $id );
+	foreach ( $metadata + array( 'post_type' => 'frm_styles' ) as $key => $value ) {
+		if ( (string) $after->{$key} !== (string) $value ) {
+			return array( 'success' => false, 'applied' => true, 'message' => 'Native metadata readback differs. Inspect the selected object.' );
+		}
+	}
+	if ( FrmAppHelper::maybe_json_decode( $after->post_content ) !== $settings ) {
+		return array( 'success' => false, 'applied' => true, 'message' => 'Native settings readback differs. Inspect the selected style.' );
+	}
+	mcp_formidable_clear_runtime_transients();
+	$rebuilt = mcp_formidable_rebuild_css();
+	return mcp_formidable_get_style_internal( $id ) + array( 'applied' => true, 'css_rebuild_requested' => $rebuilt );
+}
+
 /** Register selected native style reads and updates. */
 function mcp_formidable_register_style_abilities(): void {
 	wp_register_ability( 'formidable/get-style', mcp_formidable_style_ability_definition( false ) );
 	wp_register_ability( 'formidable/update-style', mcp_formidable_style_ability_definition( true ) );
+	wp_register_ability( 'formidable/restore-style', array(
+		'label' => 'Restore Formidable Style Metadata',
+		'description' => 'Preview or restore reviewed native style metadata while preserving settings. Requires native administrator and object permissions; arbitrary posts and pages are excluded.',
+		'category' => 'site',
+		'input_schema' => array( 'type' => 'object', 'properties' => array(
+			'style_id' => array( 'type' => 'integer', 'minimum' => 1 ),
+			'metadata' => array( 'type' => 'object', 'minProperties' => 1, 'description' => 'Native style post_title, post_name (unchanged), post_status, post_author, post_date, post_date_gmt, comment_status, ping_status, guid and menu_order. Style settings and ID cannot be replaced.' ),
+			'confirm' => array( 'type' => 'boolean', 'default' => false ),
+			'expected_post_hash' => array( 'type' => 'string', 'pattern' => '^[a-f0-9]{64}$' ),
+		), 'required' => array( 'style_id', 'metadata' ), 'additionalProperties' => false ),
+		'output_schema' => array( 'type' => 'object', 'properties' => array( 'success' => array( 'type' => 'boolean' ) ) ),
+		'execute_callback' => 'mcp_formidable_restore_style_internal',
+		'permission_callback' => static function (): bool { return current_user_can( 'manage_options' ); },
+		'meta' => array( 'annotations' => array( 'readonly' => false, 'destructive' => true, 'idempotent' => true ) ),
+	) );
 }
 
 /**
