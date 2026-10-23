@@ -3,7 +3,7 @@
  * Plugin Name: MCP Abilities - Formidable
  * Plugin URI: https://devenia.com/plugins/mcp-abilities-formidable/
  * Description: Formidable Forms abilities for MCP. Inspect forms, styles, settings, usage, and CSS cache/runtime behavior.
- * Version: 1.3.1
+ * Version: 1.3.2
  * Author: basicus
  * Author URI: https://profiles.wordpress.org/basicus/
  * License: GPL-2.0+
@@ -1285,7 +1285,13 @@ function mcp_formidable_restore_style_internal( array $input ): array {
 		return array( 'success' => false, 'message' => 'Style default selection must be zero or one.' );
 	}
 	if ( isset( $metadata['post_name'] ) && $metadata['post_name'] !== $post->post_name ) {
-		return array( 'success' => false, 'message' => 'Preserve the existing style slug and native CSS scope.' );
+		if ( ! empty( $settings['custom_css'] ) || ! empty( $settings['single_style_custom_css'] ) ) {
+			return array( 'success' => false, 'message' => 'Preserve the existing slug while the style contains custom CSS.' );
+		}
+		$metadata['post_name'] = sanitize_title( $metadata['post_name'] );
+		if ( '' === $metadata['post_name'] ) {
+			return array( 'success' => false, 'message' => 'Provide a nonempty native style slug.' );
+		}
 	}
 	if ( 'publish' === ( $metadata['post_status'] ?? $post->post_status ) && ! current_user_can( 'publish_posts' ) ) {
 		return array( 'success' => false, 'message' => 'Native publishing permission is required.' );
@@ -1343,7 +1349,7 @@ function mcp_formidable_register_style_abilities(): void {
 		'category' => 'site',
 		'input_schema' => array( 'type' => 'object', 'properties' => array(
 			'style_id' => array( 'type' => 'integer', 'minimum' => 1 ),
-			'metadata' => array( 'type' => 'object', 'minProperties' => 1, 'description' => 'Native style post_title, post_name (unchanged), post_status, post_author, post_date, post_date_gmt, comment_status, ping_status, guid and menu_order. Style settings and ID cannot be replaced.' ),
+			'metadata' => array( 'type' => 'object', 'minProperties' => 1, 'description' => 'Native style post_title, post_name, post_status, post_author, post_date, post_date_gmt, comment_status, ping_status, guid and menu_order. Slug changes require an empty custom-CSS configuration. Style settings and ID cannot be replaced.' ),
 			'confirm' => array( 'type' => 'boolean', 'default' => false ),
 			'expected_post_hash' => array( 'type' => 'string', 'pattern' => '^[a-f0-9]{64}$' ),
 		), 'required' => array( 'style_id', 'metadata' ), 'additionalProperties' => false ),

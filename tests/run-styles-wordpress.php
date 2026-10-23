@@ -43,6 +43,18 @@ try {
 	$request['confirm'] = true; $request['expected_post_hash'] = $preview['current_post_hash'];
 	$restored = wp_get_ability( 'formidable/restore-style' )->execute( $request );
 	mcp_formidable_style_contract( $restored['success'] && get_post_type( $id ) === 'frm_styles' && $restored['style']['settings'] === $expected, 'native metadata restoration preserves the complete settings object' );
+	$blocked = wp_get_ability( 'formidable/restore-style' )->execute( array( 'style_id' => (int) $id, 'metadata' => array( 'post_name' => 'must-not-rescope-custom-css' ) ) );
+	mcp_formidable_style_contract( ! $blocked['success'], 'native custom CSS scope stays protected' );
+	$clean_settings = $model->get_defaults();
+	$clean_settings['custom_css'] = ''; $clean_settings['single_style_custom_css'] = '';
+	$clean_id = $model->save( wp_slash( array( 'post_type' => 'frm_styles', 'post_status' => 'draft', 'post_title' => 'Clean style fixture', 'post_name' => 'mcp-clean-style-fixture', 'post_content' => $clean_settings, 'menu_order' => 0 ) ) );
+	$created[] = (int) $clean_id;
+	$clean_before = wp_get_ability( 'formidable/get-style' )->execute( array( 'style_id' => (int) $clean_id ) );
+	$rename_request = array( 'style_id' => (int) $clean_id, 'metadata' => array( 'post_name' => 'mcp-clean-style-renamed', 'menu_order' => 0 ) );
+	$rename_preview = wp_get_ability( 'formidable/restore-style' )->execute( $rename_request );
+	$rename_request['confirm'] = true; $rename_request['expected_post_hash'] = $rename_preview['current_post_hash'];
+	$renamed = wp_get_ability( 'formidable/restore-style' )->execute( $rename_request );
+	mcp_formidable_style_contract( $renamed['success'] && $renamed['style']['slug'] === 'mcp-clean-style-renamed' && $renamed['style']['settings'] === $clean_before['style']['settings'], 'native style rename preserves settings when custom CSS is empty' );
 	echo "Native WordPress/Formidable style integration passed.\n";
 } finally {
 	foreach ( $created as $id ) { wp_delete_post( $id, true ); }

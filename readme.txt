@@ -4,7 +4,7 @@ Tags: forms, formidable, mcp, api, automation
 Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,9 @@ For update notifications in WordPress, install [Devenia MCP Updater](https://dow
 4. List forms, inspect the selected ID, and then request the intended change.
 
 == Changelog ==
+
+= 1.3.2 =
+* Allow reviewed native style renaming when custom CSS is empty, retaining settings and native slug uniqueness handling.
 
 = 1.3.1 =
 * Preserve the complete native post and literal backslashes when saving style settings.

@@ -13,6 +13,7 @@ function apply_filters( $name, $v ) { return $v; }
 function is_rtl() { return false; }
 function sanitize_textarea_field( $v ) { return strip_tags( (string) $v ); }
 function sanitize_text_field( $v ) { return strip_tags( (string) $v ); }
+function sanitize_title( $v ) { return strtolower( preg_replace( '/[^a-zA-Z0-9-]+/', '-', $v ) ); }
 function clean_post_cache( $id ) {}
 function delete_transient( $key ) { $GLOBALS['cleared'][] = $key; }
 function is_wp_error( $v ) { return false; }
@@ -89,4 +90,10 @@ $recovery['expected_post_hash'] = $preview['current_post_hash'];
 $restored = call_style( 'restore-style', $recovery );
 check( $restored['success'] && $restored['style']['title'] === 'Restored style' && $restored['style']['status'] === 'publish' && $GLOBALS['posts'][44]->post_type === 'frm_styles', 'native restoration preserves style settings and restores reviewed metadata' );
 check( ! call_style( 'restore-style', array( 'style_id' => 43, 'metadata' => $metadata ) )['success'], 'page objects cannot be converted to styles' );
+check( ! call_style( 'restore-style', array( 'style_id' => 42, 'metadata' => array( 'post_name' => 'changed-scope' ) ) )['success'], 'custom CSS prevents a style scope rename' );
+$rename = array( 'style_id' => 44, 'metadata' => array( 'post_name' => 'restored-unique-style', 'menu_order' => 0 ) );
+$preview = call_style( 'restore-style', $rename );
+$rename['confirm'] = true; $rename['expected_post_hash'] = $preview['current_post_hash'];
+$renamed = call_style( 'restore-style', $rename );
+check( $renamed['success'] && $renamed['style']['slug'] === 'restored-unique-style' && $renamed['style']['settings'] === $restored['style']['settings'], 'empty custom-CSS style can be renamed without changing its settings' );
 exit( $failed ? 1 : 0 );

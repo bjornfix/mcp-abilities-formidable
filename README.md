@@ -2,12 +2,12 @@
 
 Inspect a Formidable form before you change it. Find its fields and known page references, copy it with Formidable's own duplication process, or adjust one field through an authenticated MCP connection.
 
-[![Release 1.3.1](https://img.shields.io/badge/release-1.3.1-blue.svg)](https://downloads.devenia.com/mcp-abilities-formidable.zip)
+[![Release 1.3.2](https://img.shields.io/badge/release-1.3.2-blue.svg)](https://downloads.devenia.com/mcp-abilities-formidable.zip)
 [![License GPLv2 or later](https://img.shields.io/badge/license-GPLv2%2B-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
 [![WordPress 6.9+](https://img.shields.io/badge/WordPress-6.9%2B-blue.svg)](https://wordpress.org/download/)
 [![PHP 8.0+](https://img.shields.io/badge/PHP-8.0%2B-purple.svg)](https://www.php.net/downloads.php)
 
-**Stable tag:** 1.3.1 · **Tested up to:** 7.1 (7.1-RC3) · **License:** GPLv2 or later
+**Stable tag:** 1.3.2 · **Tested up to:** 7.1 (7.1-RC3) · **License:** GPLv2 or later
 
 **Tags:** forms, formidable, mcp, api, automation
 
@@ -136,7 +136,7 @@ Read `formidable/get-style` with `{"style_id":42}`. The response distinguishes s
 
 Only selected native settings change. The style title, slug, default selection, publication status and other stored settings are preserved. Native sanitization, font quotation, style CSS scoping and base-font conversion apply when relevant. Style access requires `frm_edit_forms` or `manage_options`. CSS generation uses Formidable and still needs a rendered check.
 
-Use `formidable/restore-style` to preview selected native metadata from a known style backup. It preserves settings and requires native administrator and selected-object editing permissions. Confirmation requires the returned current-object hash. A regular page or arbitrary post cannot be converted to a style. The only accepted non-style object is an empty draft containing a complete recognized native style settings object. Existing style slugs and another style’s default selection are protected.
+Use `formidable/restore-style` to preview selected native metadata from a known style backup. It preserves settings and requires native administrator and selected-object editing permissions. Confirmation requires the returned current-object hash. A regular page or arbitrary post cannot be converted to a style. The only accepted non-style object is an empty draft containing a complete recognized native style settings object. Slug changes require an empty custom-CSS configuration and use native WordPress uniqueness handling. Another style’s default selection is protected.
 
 ## Installation
 
@@ -150,6 +150,10 @@ For update notifications in WordPress, install [Devenia MCP Updater](https://dow
 
 ## Recent Changes
 
+
+### 1.3.2
+
+Allow reviewed native style renaming when custom CSS is empty, so style metadata can be restored without changing existing CSS scopes or settings.
 
 ### 1.3.1
 
