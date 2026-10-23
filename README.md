@@ -2,18 +2,18 @@
 
 Inspect a Formidable form before you change it. Find its fields and known page references, copy it with Formidable's own duplication process, or adjust one field through an authenticated MCP connection.
 
-[![Release 1.2.12](https://img.shields.io/badge/release-1.2.12-blue.svg)](https://downloads.devenia.com/mcp-abilities-formidable.zip)
+[![Release 1.3.0](https://img.shields.io/badge/release-1.3.0-blue.svg)](https://downloads.devenia.com/mcp-abilities-formidable.zip)
 [![License GPLv2 or later](https://img.shields.io/badge/license-GPLv2%2B-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
 [![WordPress 6.9+](https://img.shields.io/badge/WordPress-6.9%2B-blue.svg)](https://wordpress.org/download/)
 [![PHP 8.0+](https://img.shields.io/badge/PHP-8.0%2B-purple.svg)](https://www.php.net/downloads.php)
 
-**Stable tag:** 1.2.12 · **Tested up to:** 7.1 (7.1-RC3) · **License:** GPLv2 or later
+**Stable tag:** 1.3.0 · **Tested up to:** 7.1 (7.1-RC3) · **License:** GPLv2 or later
 
 **Tags:** forms, formidable, mcp, api, automation
 
 ## What It Does
 
-Sixteen WordPress abilities expose Formidable forms, fields, styles, settings and known usage locations. Write operations can copy a form, change its properties or options, create and update fields, edit a form action, save permitted post metadata, and clear generated CSS caches.
+Eighteen WordPress abilities expose Formidable forms, fields, styles, settings and known usage locations. Write operations can copy a form, change its properties or options, create and update fields, edit a form action, save permitted post metadata, and clear generated CSS caches.
 
 Formidable owns form storage, field validation, duplication hooks and action behaviour. This add-on connects those features to the WordPress Abilities API. It does not provide an entry inbox, submission export or a replacement form builder.
 
@@ -62,7 +62,7 @@ Read the [Formidable add-on page](https://devenia.com/plugins/mcp-abilities-form
 
 Configure the MCP stack and confirm discovery. Start with `formidable/list-forms`, then inspect one returned ID with `formidable/get-form` and `include_fields: true`. Select the exact object before requesting a write.
 
-## Abilities (16)
+## Abilities (18)
 
 | Ability | Result or change |
 |---|---|
@@ -80,6 +80,8 @@ Configure the MCP stack and confirm discovery. Start with `formidable/list-forms
 | `formidable/update-action` | A Formidable action post's title, type or JSON settings |
 | `formidable/update-post-meta` | Permitted metadata on an explicit WordPress post |
 | `formidable/list-styles` | Saved styles and an optional virtual default entry |
+| `formidable/get-style` | Stored and effective settings, native setting keys and a review hash for one existing style |
+| `formidable/update-style` | Merge selected native style settings, verify persistence and optionally regenerate CSS |
 | `formidable/find-form-usage` | Supported post-content, Elementor and widget references |
 | `formidable/clear-css-cache` | Clear runtime/style transients and optionally regenerate CSS |
 
@@ -123,6 +125,16 @@ Usage search checks post content, Elementor `_elementor_data` and `widget_frm_sh
 
 Writes take effect when called. The add-on has no separate confirmation step or general undo feature. Raw settings can contain private configuration; restrict administrator access and handle responses accordingly.
 
+### Inspect and update a style
+
+Read `formidable/get-style` with `{"style_id":42}`. The response distinguishes stored settings from effective defaults and lists the setting keys supplied by the installed Formidable version. Use its `style_hash` in `formidable/update-style`:
+
+```json
+{"style_id":42,"expected_style_hash":"<hash from get-style>","settings":{"font":"\"Lexend Deca\", sans-serif","field_font_size":"18px"},"rebuild_css":true}
+```
+
+Only selected native settings change. The style title, slug, default selection, publication status and other stored settings are preserved. Native sanitization, font quotation, style CSS scoping and base-font conversion apply when relevant. Style access requires `frm_edit_forms` or `manage_options`. CSS generation uses Formidable and still needs a rendered check.
+
 ## Installation
 
 
@@ -135,6 +147,10 @@ For update notifications in WordPress, install [Devenia MCP Updater](https://dow
 
 ## Recent Changes
 
+
+### 1.3.0
+
+Read and update every setting supported by the installed native style model. Distinguish stored values from defaults, reject stale reads, preserve unedited values and style identity, and optionally regenerate native CSS.
 
 ### 1.2.12
 

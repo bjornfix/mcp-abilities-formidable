@@ -3,7 +3,7 @@
  * Plugin Name: MCP Abilities - Formidable
  * Plugin URI: https://devenia.com/plugins/mcp-abilities-formidable/
  * Description: Formidable Forms abilities for MCP. Inspect forms, styles, settings, usage, and CSS cache/runtime behavior.
- * Version: 1.2.12
+ * Version: 1.3.0
  * Author: basicus
  * Author URI: https://profiles.wordpress.org/basicus/
  * License: GPL-2.0+
@@ -1092,6 +1092,159 @@ function mcp_formidable_clone_form_internal( int $source_form_id, string $name, 
 }
 
 /**
+ * Read one existing native style without resolving a synthetic default or creating a style.
+ *
+ * @param int $style_id Existing style post ID.
+ * @return array<string,mixed>
+ */
+function mcp_formidable_get_style_internal( int $style_id ): array {
+	if ( ! class_exists( 'FrmStyle' ) || ! is_callable( array( 'FrmAppHelper', 'maybe_json_decode' ) ) ) {
+		return array( 'success' => false, 'message' => 'Native Formidable style APIs are unavailable.' );
+	}
+	$post = get_post( $style_id );
+	if ( ! $post || 'frm_styles' !== $post->post_type || 'trash' === $post->post_status ) {
+		return array( 'success' => false, 'message' => 'Select an existing Formidable style ID.' );
+	}
+	// get_one() fills defaults on its returned post. Capture stored values first.
+	$stored = FrmAppHelper::maybe_json_decode( $post->post_content );
+	if ( ! is_array( $stored ) ) {
+		return array( 'success' => false, 'message' => 'The selected style has invalid native settings.' );
+	}
+	$style = array(
+		'id'         => (int) $post->ID,
+		'title'      => (string) $post->post_title,
+		'slug'       => (string) $post->post_name,
+		'status'     => (string) $post->post_status,
+		'is_default' => ! empty( $post->menu_order ),
+		'settings'   => $stored,
+	);
+	$model     = new FrmStyle( $style_id );
+	$effective = $model->get_one();
+	if ( ! $effective || ! is_array( $effective->post_content ) ) {
+		return array( 'success' => false, 'message' => 'Native Formidable style could not be read.' );
+	}
+	return array(
+		'success'                => true,
+		'style'                  => $style,
+		'effective_settings'     => $effective->post_content,
+		'available_setting_keys' => array_keys( $model->get_defaults() ),
+		'style_hash'             => hash( 'sha256', (string) wp_json_encode( $style ) ),
+	);
+}
+
+/**
+ * Merge reviewed settings through the native style sanitizer and storage model.
+ *
+ * @param array<string,mixed> $input Selected ID, changes, hash and rebuild choice.
+ * @return array<string,mixed>
+ */
+function mcp_formidable_update_style_internal( array $input ): array {
+	$style_id = (int) ( $input['style_id'] ?? 0 );
+	$before   = mcp_formidable_get_style_internal( $style_id );
+	if ( ! $before['success'] ) {
+		return $before;
+	}
+	if ( ( $input['expected_style_hash'] ?? '' ) !== $before['style_hash'] ) {
+		return array( 'success' => false, 'message' => 'The style changed. Read it again before updating.' );
+	}
+	$changes = $input['settings'] ?? array();
+	if ( ! is_array( $changes ) || ! $changes || count( $changes ) > 250 || array_diff( array_keys( $changes ), $before['available_setting_keys'] ) ) {
+		return array( 'success' => false, 'message' => 'Provide supported settings returned by get-style.' );
+	}
+	foreach ( $changes as $value ) {
+		if ( ! is_scalar( $value ) || strlen( (string) $value ) > 200000 ) {
+			return array( 'success' => false, 'message' => 'Style settings must be bounded scalar values.' );
+		}
+	}
+	$model = new FrmStyle( $style_id );
+	if ( ! is_callable( array( $model, 'sanitize_post_content' ) ) || ! is_callable( array( $model, 'save' ) ) ) {
+		return array( 'success' => false, 'message' => 'Native Formidable style storage is unavailable.' );
+	}
+	$sanitized = $model->sanitize_post_content( array_replace( $before['effective_settings'], $changes ) );
+	$settings  = $before['style']['settings'];
+	foreach ( array_keys( $changes ) as $key ) {
+		$value = $sanitized[ $key ];
+		if ( in_array( $key, $model->get_color_settings(), true ) ) {
+			$value = str_replace( '#', '', $value );
+		} elseif ( 'font' === $key ) {
+			$value = $model->force_balanced_quotation( $value );
+		} elseif ( 'single_style_custom_css' === $key && '' !== $value ) {
+			if ( ! class_exists( 'FrmCssScopeHelper' ) ) {
+				return array( 'success' => false, 'message' => 'Native style CSS scoping is unavailable.' );
+			}
+			$value = ( new FrmCssScopeHelper() )->nest( $value, 'frm_style_' . $before['style']['slug'] );
+		}
+		$settings[ $key ] = $value;
+	}
+	if ( array_intersect( array( 'base_font_size', 'use_base_font_size' ), array_keys( $changes ) ) ) {
+		if ( ! is_callable( array( 'FrmStylesHelper', 'update_base_font_size' ) ) ) {
+			return array( 'success' => false, 'message' => 'Native base-font conversion is unavailable.' );
+		}
+		$settings = FrmStylesHelper::update_base_font_size( $settings, $model->get_defaults() );
+	}
+	if ( $settings === $before['style']['settings'] ) {
+		return $before + array( 'updated' => false, 'css_rebuild_requested' => false );
+	}
+	// save() accepts explicit values; update() reads $_POST and publishes the style.
+	$saved = $model->save( array( 'ID' => $style_id, 'post_content' => $settings ) );
+	if ( is_wp_error( $saved ) || (int) $saved !== $style_id ) {
+		return array( 'success' => false, 'message' => 'Native style storage failed. Read the style again to check its current state.' );
+	}
+	clean_post_cache( $style_id );
+	$after    = mcp_formidable_get_style_internal( $style_id );
+	$expected = $before['style'];
+	$expected['settings'] = $settings;
+	if ( ! $after['success'] || $after['style'] !== $expected ) {
+		return array( 'success' => false, 'updated' => true, 'message' => 'Style readback differs from the requested change. Read it again before further writes.' );
+	}
+	mcp_formidable_clear_runtime_transients();
+	$rebuild = ! array_key_exists( 'rebuild_css', $input ) || ! empty( $input['rebuild_css'] );
+	$rebuilt = $rebuild && mcp_formidable_rebuild_css();
+	return $after + array( 'updated' => true, 'css_rebuild_requested' => $rebuilt );
+}
+
+/**
+ * Define a selected native style operation.
+ *
+ * @param bool $write Whether to update the selected style.
+ * @return array<string,mixed>
+ */
+function mcp_formidable_style_ability_definition( bool $write ): array {
+	$id         = array( 'type' => 'integer', 'minimum' => 1 );
+	$permission = static function (): bool {
+		return current_user_can( 'frm_edit_forms' ) || current_user_can( 'manage_options' );
+	};
+	$properties = array( 'style_id' => $id );
+	$required   = array( 'style_id' );
+	if ( $write ) {
+		$properties['settings'] = array( 'type' => 'object', 'minProperties' => 1, 'maxProperties' => 250, 'description' => 'Native setting keys from get-style. Only supplied keys change; other stored settings are preserved.' );
+		$properties['expected_style_hash'] = array( 'type' => 'string', 'pattern' => '^[a-f0-9]{64}$' );
+		$properties['rebuild_css'] = array( 'type' => 'boolean', 'default' => true );
+		$required = array( 'style_id', 'settings', 'expected_style_hash' );
+	}
+	return array(
+		'label'               => $write ? 'Update Formidable Style' : 'Get Formidable Style',
+		'description'         => $write ? 'Merge reviewed native style settings, preserve its identity and status, verify storage and optionally regenerate CSS.' : 'Read stored and effective settings and supported setting keys for one existing native style.',
+		'category'            => 'site',
+		'input_schema'        => array( 'type' => 'object', 'properties' => $properties, 'required' => $required, 'additionalProperties' => false ),
+		'output_schema'       => array( 'type' => 'object', 'properties' => array( 'success' => array( 'type' => 'boolean' ) ) ),
+		'execute_callback'    => static function ( array $input ) use ( $write ): array {
+			$inactive = mcp_formidable_require_active();
+			if ( $inactive ) { return $inactive; }
+			return $write ? mcp_formidable_update_style_internal( $input ) : mcp_formidable_get_style_internal( (int) $input['style_id'] );
+		},
+		'permission_callback' => $permission,
+		'meta'                => array( 'annotations' => array( 'readonly' => ! $write, 'destructive' => $write, 'idempotent' => true ) ),
+	);
+}
+
+/** Register selected native style reads and updates. */
+function mcp_formidable_register_style_abilities(): void {
+	wp_register_ability( 'formidable/get-style', mcp_formidable_style_ability_definition( false ) );
+	wp_register_ability( 'formidable/update-style', mcp_formidable_style_ability_definition( true ) );
+}
+
+/**
  * List published Formidable styles.
  *
  * @param bool $include_default Include synthetic default style entry.
@@ -1281,6 +1434,7 @@ function mcp_register_formidable_abilities(): void {
 	if ( ! mcp_formidable_check_dependencies() ) {
 		return;
 	}
+	mcp_formidable_register_style_abilities();
 
 	wp_register_ability(
 		'formidable/get-settings',
