@@ -29,7 +29,10 @@ try {
 	mcp_formidable_style_contract( $changed['style']['settings'] === $expected, 'all unedited settings and literal CSS backslashes survive native JSON storage' );
 	$post_after = get_post( $id );
 	foreach ( array( 'post_type', 'post_title', 'post_status', 'post_name', 'post_date', 'post_author', 'guid', 'menu_order' ) as $key ) {
-		mcp_formidable_style_contract( (string) $post_before->{$key} === (string) $post_after->{$key}, 'native post metadata preserved: ' . $key );
+		$old = (string) $post_before->{$key}; $new = (string) $post_after->{$key};
+		// WordPress esc_url() encodes ampersands in a GUID on a subsequent save.
+		if ( 'guid' === $key ) { $old = html_entity_decode( $old, ENT_QUOTES | ENT_HTML5, 'UTF-8' ); $new = html_entity_decode( $new, ENT_QUOTES | ENT_HTML5, 'UTF-8' ); }
+		mcp_formidable_style_contract( $old === $new, 'native post metadata preserved: ' . $key );
 	}
 	wp_update_post( array( 'ID' => $id, 'post_type' => 'post', 'post_title' => '', 'post_status' => 'draft', 'menu_order' => 0 ) );
 	$metadata = array();

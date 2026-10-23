@@ -1315,7 +1315,13 @@ function mcp_formidable_restore_style_internal( array $input ): array {
 	clean_post_cache( $id );
 	$after = get_post( $id );
 	foreach ( $metadata + array( 'post_type' => 'frm_styles' ) as $key => $value ) {
-		if ( (string) $after->{$key} !== (string) $value ) {
+		$actual_value   = (string) $after->{$key};
+		$expected_value = (string) $value;
+		if ( 'guid' === $key ) {
+			$actual_value   = html_entity_decode( $actual_value, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+			$expected_value = html_entity_decode( $expected_value, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		}
+		if ( $actual_value !== $expected_value ) {
 			return array( 'success' => false, 'applied' => true, 'message' => 'Native metadata readback differs. Inspect the selected object.' );
 		}
 	}
